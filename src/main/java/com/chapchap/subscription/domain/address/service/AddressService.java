@@ -1,4 +1,4 @@
-package com.chapchap.subscription.domain.address.sevice;
+package com.chapchap.subscription.domain.address.service;
 
 import com.chapchap.subscription.domain.address.entity.Address;
 import com.chapchap.subscription.domain.address.exception.*;
@@ -305,6 +305,7 @@ public class AddressService {
         }
 
         // 기본 배송지가 따로 존재하면, 그친구의 기본 배송지 해제시키고 새로운 친구를 기본 배송지로 설정
+        // DeliveryAddressVersion 버전 숫자 올림
         Address currentDefaultAddress = addressRepository
                 .findByUserIdAndIsDefaultTrueAndDeletedAtIsNull(userId)
                 .orElse(null);
@@ -320,6 +321,7 @@ public class AddressService {
         }
 
         newDefaultAddress.setAsDefault();
+        newDefaultAddress.increaseDeliveryAddressVersion();
 
         return new AddressDefaultResponse(
                 newDefaultAddress.getPublicId(),

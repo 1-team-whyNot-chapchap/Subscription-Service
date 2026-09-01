@@ -3,7 +3,7 @@ package com.chapchap.subscription.domain.address.controller;
 import com.chapchap.subscription.domain.address.request.AddressCreateRequest;
 import com.chapchap.subscription.domain.address.request.AddressUpdateRequest;
 import com.chapchap.subscription.domain.address.response.*;
-import com.chapchap.subscription.domain.address.sevice.AddressService;
+import com.chapchap.subscription.domain.address.service.AddressService;
 import com.chapchap.subscription.global.response.GlobalResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
