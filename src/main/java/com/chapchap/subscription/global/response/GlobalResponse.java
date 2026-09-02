@@ -7,6 +7,7 @@ public record GlobalResponse<T>(
     , String message
     , T data
 ) {
+
     private static final String SUCCESS_CODE = "00";
     private static final String SUCCESS_MESSAGE = "SUCCESS";
 

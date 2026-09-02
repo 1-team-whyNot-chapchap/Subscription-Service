@@ -5,6 +5,7 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
+  # JPA
   jpa:
     hibernate:
       ddl-auto: update
@@ -12,3 +13,10 @@ spring:
     properties:
       hibernate:
         format_sql: true
+#        default_batch_fetch_size: 100
+    defer-datasource-initialization: true
+  sql:
+    init:
+#      data-locations: classpath*:dummy/*.sql
+      mode: always
+#      platform: all
