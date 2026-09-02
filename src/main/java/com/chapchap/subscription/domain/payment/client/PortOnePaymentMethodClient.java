@@ -64,7 +64,7 @@ public class PortOnePaymentMethodClient {
         if (status.is5xxServerError()) {
             return new PaymentProviderUnavailableException();
         }
-        return e;
+        return new IllegalStateException("예상하지 못한 결제 서비스 응답 상태입니다: " + status.value());
     }
 
     private PaymentMethodVerificationResult toVerificationResult(PortOneBillingKeyResponse response) {
