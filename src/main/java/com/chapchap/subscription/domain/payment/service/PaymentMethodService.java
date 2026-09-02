@@ -1,4 +1,4 @@
-package com.chapchap.subscription.domain.payment;
+package com.chapchap.subscription.domain.payment.service;
 
 import com.chapchap.subscription.domain.payment.client.PaymentMethodVerificationResult;
 import com.chapchap.subscription.domain.payment.client.PortOnePaymentMethodClient;
