@@ -16,3 +16,12 @@ management:
     web:
       exposure:
         include: health
+
+portone:
+  api:
+    base-url: ${PORTONE_API_BASE_URL:https://api.portone.io}
+    secret: ${PORTONE_API_SECRET}
+
+payment:
+  billing-key:
+    encryption-key: ${PAYMENT_BILLING_KEY_ENCRYPTION_KEY}

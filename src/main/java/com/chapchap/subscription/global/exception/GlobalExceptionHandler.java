@@ -26,41 +26,36 @@ public class GlobalExceptionHandler {
                 .body(GlobalResponse.from(errorCode));
     }
 
-    /**
-     * Subscription Service 기능 안에서의 예외 처리
-     */
+    // --------------------------------------------------
+    // === Subscription Service 기능 안에서의 예외 처리 ===
+    // --------------------------------------------------
+
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<GlobalResponse<Void>> handle(
             BusinessException e
     ) {
         log.debug(
-                "{}: {}",
-                e.getErrorCode().name(),
-                e.getMessage()
+                "{}: {}"
+                , e.getErrorCode().name()
+                , e.getMessage()
         );
-
-        return generateErrorResponse(
-                e.getErrorCode()
-        );
+        return generateErrorResponse(e.getErrorCode());
     }
 
-    // ------------------------------------
-    // 이하 Spring에서 발생하는 Exceptions
-    // ------------------------------------
+    // --------------------------------
+    // === Spring 에서 발생하는 예외 ===
+    // --------------------------------
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<GlobalResponse<Void>> handle(
             MethodArgumentTypeMismatchException e
     ) {
         log.debug(
-                "{}: invalid parameter {}",
-                ErrorCode.INVALID_REQUEST.name(),
-                e.getName()
+                "{}: invalid parameter {}"
+                , ErrorCode.INVALID_REQUEST.name()
+                , e.getName()
         );
-
-        return generateErrorResponse(
-                ErrorCode.INVALID_REQUEST
-        );
+        return generateErrorResponse(ErrorCode.INVALID_REQUEST);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -80,54 +75,34 @@ public class GlobalExceptionHandler {
                 ));
 
         log.debug(
-                "{}: {}",
-                ErrorCode.INVALID_REQUEST.name(),
-                errors
+                "{}: {}"
+                , ErrorCode.INVALID_REQUEST.name()
+                , errors
         );
-
-        return generateErrorResponse(
-                ErrorCode.INVALID_REQUEST
-        );
+        return generateErrorResponse(ErrorCode.INVALID_REQUEST);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<GlobalResponse<Void>> handle(
             HttpMessageNotReadableException e
     ) {
-        log.debug(
-                ErrorCode.INVALID_REQUEST.name()
-        );
-
-        return generateErrorResponse(
-                ErrorCode.INVALID_REQUEST
-        );
+        log.debug(ErrorCode.INVALID_REQUEST.name());
+        return generateErrorResponse(ErrorCode.INVALID_REQUEST);
     }
 
     @ExceptionHandler(DataAccessException.class)
     public ResponseEntity<GlobalResponse<Void>> handle(
             DataAccessException e
     ) {
-        log.error(
-                ErrorCode.DATABASE_ERROR.name(),
-                e
-        );
-
-        return generateErrorResponse(
-                ErrorCode.DATABASE_ERROR
-        );
+        log.error(ErrorCode.DATABASE_ERROR.name(), e);
+        return generateErrorResponse(ErrorCode.DATABASE_ERROR);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<GlobalResponse<Void>> handle(
             Exception e
     ) {
-        log.error(
-                ErrorCode.INTERNAL_SERVER_ERROR.name(),
-                e
-        );
-
-        return generateErrorResponse(
-                ErrorCode.INTERNAL_SERVER_ERROR
-        );
+        log.error(ErrorCode.INTERNAL_SERVER_ERROR.name(), e);
+        return generateErrorResponse(ErrorCode.INTERNAL_SERVER_ERROR);
     }
 }
