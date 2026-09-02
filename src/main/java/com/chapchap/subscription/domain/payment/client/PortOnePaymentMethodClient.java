@@ -1,5 +1,8 @@
 package com.chapchap.subscription.domain.payment.client;
 
+import com.chapchap.subscription.domain.payment.exception.PaymentMethodInvalidException;
+import com.chapchap.subscription.domain.payment.exception.PaymentProviderAuthenticationFailedException;
+import com.chapchap.subscription.domain.payment.exception.PaymentProviderUnavailableException;
 import com.chapchap.subscription.global.exception.BusinessException;
 import com.chapchap.subscription.global.exception.ErrorCode;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,14 +41,14 @@ public class PortOnePaymentMethodClient {
                     .body(PortOneBillingKeyResponse.class);
 
             if (response == null) {
-                throw new BusinessException(ErrorCode.PAYMENT_PROVIDER_UNAVAILABLE);
+                throw new PaymentProviderUnavailableException();
             }
             return toVerificationResult(response);
 
         } catch (RestClientResponseException e) {
             throw mapProviderError(e);
         } catch (ResourceAccessException e) {
-            throw new BusinessException(ErrorCode.PAYMENT_PROVIDER_UNAVAILABLE);
+            throw new PaymentProviderUnavailableException();
         }
     }
 
@@ -53,15 +56,15 @@ public class PortOnePaymentMethodClient {
         HttpStatusCode status = e.getStatusCode();
 
         if (status.isSameCodeAs(HttpStatus.BAD_REQUEST) || status.isSameCodeAs(HttpStatus.NOT_FOUND)) {
-            return new BusinessException(ErrorCode.PAYMENT_METHOD_INVALID);
+            return new PaymentMethodInvalidException();
         }
 
         if (status.isSameCodeAs(HttpStatus.UNAUTHORIZED) || status.isSameCodeAs(HttpStatus.FORBIDDEN)) {
-            return new BusinessException(ErrorCode.PAYMENT_PROVIDER_AUTHENTICATION_FAILED);
+            return new PaymentProviderAuthenticationFailedException();
         }
 
         if (status.is5xxServerError()) {
-            return new BusinessException(ErrorCode.PAYMENT_PROVIDER_UNAVAILABLE);
+            return new PaymentProviderUnavailableException();
         }
         return e;
     }

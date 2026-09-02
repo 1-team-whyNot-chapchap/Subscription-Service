@@ -7,8 +7,8 @@ import com.chapchap.subscription.domain.payment.entity.PaymentMethodStatus;
 import com.chapchap.subscription.domain.payment.entity.PaymentProviderCode;
 import com.chapchap.subscription.domain.payment.repository.PaymentMethodRepository;
 import com.chapchap.subscription.domain.payment.security.BillingKeyProtector;
-import com.chapchap.subscription.global.exception.BusinessException;
-import com.chapchap.subscription.global.exception.ErrorCode;
+import com.chapchap.subscription.domain.payment.exception.PaymentMethodInvalidException;
+import com.chapchap.subscription.domain.payment.exception.PaymentMethodRegistrationConflictException;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -34,7 +34,7 @@ public class PaymentMethodService {
         PaymentMethodVerificationResult verificationResult = portOnePaymentMethodClient.verifyBillingKey(billingKey);
 
         if (!verificationResult.valid()) {
-            throw new BusinessException(ErrorCode.PAYMENT_METHOD_INVALID);
+            throw new PaymentMethodInvalidException();
         }
 
         String protectedExternalMethodRef = billingKeyProtector.protect(userId, billingKey);
@@ -51,7 +51,7 @@ public class PaymentMethodService {
             if (e.getCause() instanceof ConstraintViolationException cause
                     && CURRENT_PAYMENT_METHOD_UNIQUE_CONSTRAINT.equals(cause.getConstraintName())
             ) {
-                throw new BusinessException(ErrorCode.PAYMENT_METHOD_REGISTRATION_CONFLICT);
+                throw new PaymentMethodRegistrationConflictException();
             }
             throw e;
         }
