@@ -1,17 +1,20 @@
 package com.chapchap.subscription.domain.payment.entity;
 
-import com.chapchap.subscription.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.GeneratedColumn;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Getter
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 @Table(
     name = "payment_methods"
     , uniqueConstraints = {
@@ -25,7 +28,7 @@ import java.util.UUID;
     }
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class PaymentMethod extends BaseTimeEntity {
+public class PaymentMethod {
     private static final String PUBLIC_ID_PREFIX = "PAY-";
 
     @Id
@@ -71,6 +74,14 @@ public class PaymentMethod extends BaseTimeEntity {
 
     @Column(name = "retirement_at")
     private LocalDateTime retirementAt;
+
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
