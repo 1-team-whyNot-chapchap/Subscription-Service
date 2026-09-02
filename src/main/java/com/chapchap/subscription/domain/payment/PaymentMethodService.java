@@ -30,7 +30,7 @@ public class PaymentMethodService {
     private final BillingKeyProtector billingKeyProtector;
     private final TransactionTemplate transactionTemplate;
 
-    public PaymentMethod registerVerifiedPaymentMethod(Long userId, String billingKey) {
+    public PaymentMethod registerPaymentMethod(Long userId, String billingKey) {
         PaymentMethodVerificationResult verificationResult = portOnePaymentMethodClient.verifyBillingKey(billingKey);
 
         if (!verificationResult.valid()) {

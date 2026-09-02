@@ -21,9 +21,6 @@ portone:
   api:
     base-url: ${PORTONE_API_BASE_URL:https://api.portone.io}
     secret: ${PORTONE_API_SECRET}
-    # fallback-provider: ${PORTONE_FALLBACK_PROVIDER:PORTONE_CHANNEL}
-    # fallback-card-company: ${PORTONE_FALLBACK_CARD_COMPANY:카드}
-    # fallback-masked-card-number: ${PORTONE_FALLBACK_MASKED_CARD_NUMBER:마스킹 정보 없음}
 
 payment:
   billing-key:

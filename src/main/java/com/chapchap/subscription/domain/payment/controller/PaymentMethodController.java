@@ -29,7 +29,7 @@ public class PaymentMethodController {
         , Authentication authentication
     ) {
         Long userId = Long.parseLong(authentication.getName());
-        PaymentMethod paymentMethod = paymentMethodService.registerVerifiedPaymentMethod(userId, request.billingKey());
+        PaymentMethod paymentMethod = paymentMethodService.registerPaymentMethod(userId, request.billingKey());
         PaymentMethodCreateResponse response = PaymentMethodCreateResponse.from(paymentMethod);
 
         return ResponseEntity.ok(GlobalResponse.success(response));
