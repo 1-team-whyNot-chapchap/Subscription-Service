@@ -1,6 +1,6 @@
 package com.chapchap.subscription.domain.payment.controller;
 
-import com.chapchap.subscription.domain.payment.PaymentMethodService;
+import com.chapchap.subscription.domain.payment.service.PaymentMethodService;
 import com.chapchap.subscription.domain.payment.entity.PaymentMethod;
 import com.chapchap.subscription.domain.payment.request.PaymentMethodCreateRequest;
 import com.chapchap.subscription.domain.payment.response.PaymentMethodCreateResponse;
