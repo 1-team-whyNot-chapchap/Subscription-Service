@@ -13,10 +13,12 @@ import lombok.RequiredArgsConstructor;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -55,6 +57,14 @@ public class PaymentMethodService {
             }
             throw e;
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<PaymentMethod> getAvailablePaymentMethods(Long userId) {
+        return paymentMethodRepository.findAllByUserIdAndStatusAndDeletedAtIsNullOrderByIdAsc(
+                userId
+                , PaymentMethodStatus.AVAILABLE
+            );
     }
 
     private PaymentMethod registerVerifiedPaymentMethod(

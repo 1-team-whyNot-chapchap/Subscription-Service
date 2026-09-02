@@ -5,6 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -45,6 +49,20 @@ public class GlobalExceptionHandler {
     // --------------------------------
     // === Spring 에서 발생하는 예외 ===
     // --------------------------------
+
+    @ExceptionHandler(AuthorizationDeniedException.class)
+    public ResponseEntity<GlobalResponse<Void>> handle(
+            AuthorizationDeniedException e
+    ) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null
+                || authentication instanceof AnonymousAuthenticationToken) {
+            log.debug(ErrorCode.AUTHENTICATION_REQUIRED.name());
+            return generateErrorResponse(ErrorCode.AUTHENTICATION_REQUIRED);
+        }
+        throw e;
+    }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<GlobalResponse<Void>> handle(
