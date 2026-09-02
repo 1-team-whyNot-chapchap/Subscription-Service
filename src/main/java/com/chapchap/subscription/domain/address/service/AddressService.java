@@ -1,12 +1,15 @@
 package com.chapchap.subscription.domain.address.service;
 
 import com.chapchap.subscription.domain.address.entity.Address;
-import com.chapchap.subscription.domain.address.exception.*;
 import com.chapchap.subscription.domain.address.repository.AddressRepository;
 import com.chapchap.subscription.domain.address.repository.DeliveryMethodRepository;
 import com.chapchap.subscription.domain.address.request.AddressCreateRequest;
 import com.chapchap.subscription.domain.address.request.AddressUpdateRequest;
 import com.chapchap.subscription.domain.address.response.*;
+import com.chapchap.subscription.global.exception.address.AddressNotFoundException;
+import com.chapchap.subscription.global.exception.address.AddressOutOfServiceAreaException;
+import com.chapchap.subscription.global.exception.address.DefaultAddressDeleteNotAllowedException;
+import com.chapchap.subscription.global.exception.address.InvalidAddressRequestException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
