@@ -14,6 +14,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -50,7 +51,7 @@ public class TermsService {
     }
 
     // 동의한 내역이 있는지 판단하고 처리
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public TermsAgreementResponse agreeTerms(
             Long userId,
             TermsAgreementRequest request

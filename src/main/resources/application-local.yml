@@ -17,6 +17,6 @@ spring:
     defer-datasource-initialization: true
   sql:
     init:
-#      data-locations: classpath*:dummy/*.sql
+      data-locations: classpath:dummy/data.sql
       mode: always
 #      platform: all
