@@ -1,10 +1,8 @@
 package com.chapchap.subscription.domain.payment.client;
 
-import com.chapchap.subscription.domain.payment.exception.PaymentMethodInvalidException;
-import com.chapchap.subscription.domain.payment.exception.PaymentProviderAuthenticationFailedException;
-import com.chapchap.subscription.domain.payment.exception.PaymentProviderUnavailableException;
-import com.chapchap.subscription.global.exception.BusinessException;
-import com.chapchap.subscription.global.exception.ErrorCode;
+import com.chapchap.subscription.global.exception.payment.PaymentMethodInvalidException;
+import com.chapchap.subscription.global.exception.payment.PaymentProviderAuthenticationFailedException;
+import com.chapchap.subscription.global.exception.payment.PaymentProviderUnavailableException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;

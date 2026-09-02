@@ -1,4 +1,4 @@
-package com.chapchap.subscription.domain.payment.exception;
+package com.chapchap.subscription.global.exception.payment;
 
 import com.chapchap.subscription.global.exception.BusinessException;
 import com.chapchap.subscription.global.exception.ErrorCode;
