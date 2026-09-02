@@ -20,6 +20,10 @@ public enum ErrorCode {
     , DEFAULT_ADDRESS_DELETE_NOT_ALLOWED("ADDRESS_003", HttpStatus.CONFLICT, "기본 배송지는 삭제할 수 없습니다.")
     , ADDRESS_IN_USE("ADDRESS_004", HttpStatus.CONFLICT, "사용 중인 배송지는 삭제할 수 없습니다.")
 
+    // === Terms ===
+    , CURRENT_REQUIRED_TERMS_NOT_FOUND("TERMS_001", HttpStatus.INTERNAL_SERVER_ERROR, "현재 적용 중인 필수 약관을 확인할 수 없습니다.")
+    , TERMS_VERSION_MISMATCH("TERMS_002", HttpStatus.CONFLICT, "확인한 약관 버전이 현재 적용 약관 버전과 일치하지 않습니다.")
+
     // === Common ===
     , INVALID_REQUEST("COMMON_001", HttpStatus.BAD_REQUEST, "요청이 유효하지 않습니다.")
     , DATABASE_ERROR("COMMON_098", HttpStatus.INTERNAL_SERVER_ERROR, "데이터 처리 중 오류가 발생했습니다.")
