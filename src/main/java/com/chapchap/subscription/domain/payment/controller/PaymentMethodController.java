@@ -1,5 +1,6 @@
 package com.chapchap.subscription.domain.payment.controller;
 
+import com.chapchap.subscription.domain.payment.response.PaymentMethodListResponse;
 import com.chapchap.subscription.domain.payment.service.PaymentMethodService;
 import com.chapchap.subscription.domain.payment.entity.PaymentMethod;
 import com.chapchap.subscription.domain.payment.request.PaymentMethodCreateRequest;
@@ -10,10 +11,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -31,6 +31,19 @@ public class PaymentMethodController {
         Long userId = Long.parseLong(authentication.getName());
         PaymentMethod paymentMethod = paymentMethodService.registerPaymentMethod(userId, request.billingKey());
         PaymentMethodCreateResponse response = PaymentMethodCreateResponse.from(paymentMethod);
+
+        return ResponseEntity.ok(GlobalResponse.success(response));
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping
+    public ResponseEntity<GlobalResponse<PaymentMethodListResponse>> getPaymentMethods(
+        Authentication authentication
+    ) {
+        Long userId = Long.parseLong(authentication.getName());
+        List<PaymentMethod> paymentMethods = paymentMethodService.getAvailablePaymentMethods(userId);
+
+        PaymentMethodListResponse response = PaymentMethodListResponse.from(paymentMethods);
 
         return ResponseEntity.ok(GlobalResponse.success(response));
     }
