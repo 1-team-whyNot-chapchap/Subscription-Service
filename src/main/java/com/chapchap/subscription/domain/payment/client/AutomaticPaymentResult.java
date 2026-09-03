@@ -3,26 +3,38 @@ package com.chapchap.subscription.domain.payment.client;
 /**
  * 외부 결제 제공자의 응답을 내부 결제 처리에서 공통으로 사용할 수 있게 변환한 결과다.
  *
- * @param success 외부 결제 성공 여부
+ * @param status 외부 결제에서 명시적으로 확정된 성공 또는 거절 상태
  * @param externalPaymentId 외부 결제 건 식별자
  * @param externalTransactionRef 성공한 외부 거래의 처리 식별정보
  * @param externalResultCode 외부 제공자가 반환한 결과 코드
  * @param failureReason 외부 결제 실패 사유
  */
 public record AutomaticPaymentResult(
-    boolean success,
+    AutomaticPaymentStatus status,
     String externalPaymentId,
     String externalTransactionRef,
     String externalResultCode,
     String failureReason
 ) {
-    // ========= [TODO: SUB-FN-004 / PortOne Client 단계] =========
-    // 이유: 현재 success=false는 PG가 명시한 결제 거절을 임시로 표현한다.
-    // 완료 조건: PortOne 실제 응답 및 오류 유형이 확정된다.
-    // 후속 작업: 결제 거절은 DECLINED로 표현하고,
-    //            인증·통신·서버 오류는 전용 예외로 분리한다.
-    // 검토 사항: 정상 응답 종류가 늘어나면 boolean을 enum으로 변경한다.
-    // ========= [/TODO] ==========================================
+    /** 성공·거절별 필드 조합을 검증한다. */
+    public AutomaticPaymentResult {
+        if (status == null) {
+            throw new IllegalArgumentException("status must not be null");
+        }
+        requireText(externalPaymentId, "externalPaymentId");
+        requireText(externalResultCode, "externalResultCode");
+        if (status == AutomaticPaymentStatus.PAID) {
+            requireText(externalTransactionRef, "externalTransactionRef");
+            if (failureReason != null) {
+                throw new IllegalArgumentException("A paid payment must not have a failure reason");
+            }
+        } else {
+            requireText(failureReason, "failureReason");
+            if (externalTransactionRef != null) {
+                throw new IllegalArgumentException("A declined payment must not have a transaction reference");
+            }
+        }
+    }
 
     /**
      * 외부 결제 성공 결과를 생성하며 외부 거래 식별정보를 필수로 보존한다.
@@ -40,7 +52,7 @@ public record AutomaticPaymentResult(
         requireText(externalPaymentId, "externalPaymentId");
         requireText(externalTransactionRef, "externalTransactionRef");
         return new AutomaticPaymentResult(
-            true,
+            AutomaticPaymentStatus.PAID,
             externalPaymentId,
             externalTransactionRef,
             externalResultCode,
@@ -56,19 +68,34 @@ public record AutomaticPaymentResult(
      * @param failureReason Secret과 결제수단 참조값을 제거한 실패 사유
      * @return 실패 상태의 공통 자동결제 결과
      */
-    public static AutomaticPaymentResult failure(
+    public static AutomaticPaymentResult declined(
         String externalPaymentId,
         String externalResultCode,
         String failureReason
     ) {
         requireText(failureReason, "failureReason");
         return new AutomaticPaymentResult(
-            false,
+            AutomaticPaymentStatus.DECLINED,
             externalPaymentId,
             null,
             externalResultCode,
             failureReason
         );
+    }
+
+    /** 외부 결제가 명시적으로 성공했는지 확인한다. */
+    public boolean isPaid() {
+        return status == AutomaticPaymentStatus.PAID;
+    }
+
+    /** 외부 실패 사유가 일반 로그에 원문으로 노출되지 않도록 문자열 표현에서 제외한다. */
+    @Override
+    public String toString() {
+        return "AutomaticPaymentResult[status=" + status
+            + ", externalPaymentId=" + externalPaymentId
+            + ", externalTransactionRef=" + externalTransactionRef
+            + ", externalResultCode=" + externalResultCode
+            + ", failureReason=" + (failureReason == null ? null : "***") + ']';
     }
 
     private static void requireText(String value, String fieldName) {

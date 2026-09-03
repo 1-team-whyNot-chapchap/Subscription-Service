@@ -14,7 +14,6 @@ import com.chapchap.subscription.domain.payment.service.command.FirstPaymentExec
 import com.chapchap.subscription.domain.payment.service.exception.CurrentPaymentMethodUnavailableException;
 import com.chapchap.subscription.domain.payment.service.exception.PaymentTransactionNotFoundException;
 import com.chapchap.subscription.domain.payment.service.result.FirstPaymentExecutionResult;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -29,13 +28,7 @@ public class FirstPaymentExecutionService {
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final PaymentMethodRepository paymentMethodRepository;
     private final BillingKeyProtector billingKeyProtector;
-
-    // ========= [TODO: SUB-FN-004 / PortOne Client 단계] =========
-    // 이유: 아직 AutomaticPaymentClient 구현체가 없어 선택적 주입을 사용한다.
-    // 완료 조건: 실제 PortOne Client 구현체가 Spring Bean으로 등록된다.
-    // 후속 작업: ObjectProvider를 제거하고 생성자 직접 주입으로 변경한다.
-    // ========= [/TODO] ==========================================
-    private final ObjectProvider<AutomaticPaymentClient> automaticPaymentClientProvider;
+    private final AutomaticPaymentClient automaticPaymentClient;
 
     /**
      * 처리 중 거래·현재 결제수단·보호값·외부 Client 의존성으로 실행 Service를 구성한다.
@@ -43,18 +36,18 @@ public class FirstPaymentExecutionService {
      * @param paymentTransactionRepository 결제 거래 저장소
      * @param paymentMethodRepository 현재 결제수단 저장소
      * @param billingKeyProtector 보호된 결제수단 참조값 복호화 도구
-     * @param automaticPaymentClientProvider PortOne 구현 전에도 Context를 기동하기 위한 선택적 Client 공급자
+     * @param automaticPaymentClient 실제 외부 자동결제 Client
      */
     public FirstPaymentExecutionService(
         PaymentTransactionRepository paymentTransactionRepository,
         PaymentMethodRepository paymentMethodRepository,
         BillingKeyProtector billingKeyProtector,
-        ObjectProvider<AutomaticPaymentClient> automaticPaymentClientProvider
+        AutomaticPaymentClient automaticPaymentClient
     ) {
         this.paymentTransactionRepository = paymentTransactionRepository;
         this.paymentMethodRepository = paymentMethodRepository;
         this.billingKeyProtector = billingKeyProtector;
-        this.automaticPaymentClientProvider = automaticPaymentClientProvider;
+        this.automaticPaymentClient = automaticPaymentClient;
     }
 
     /**
@@ -77,11 +70,6 @@ public class FirstPaymentExecutionService {
                 PaymentMethodStatus.AVAILABLE
             )
             .orElseThrow(CurrentPaymentMethodUnavailableException::new);
-
-        AutomaticPaymentClient automaticPaymentClient = automaticPaymentClientProvider.getIfAvailable();
-        if (automaticPaymentClient == null) {
-            throw new IllegalStateException("Automatic payment client is not configured");
-        }
 
         String externalMethodReference = billingKeyProtector.unprotect(
             transaction.getUserId(),

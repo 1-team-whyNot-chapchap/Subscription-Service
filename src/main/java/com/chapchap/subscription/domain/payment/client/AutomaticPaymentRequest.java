@@ -21,6 +21,8 @@ public record AutomaticPaymentRequest(
     long totalAmount,
     String currency
 ) {
+    private static final String IDEMPOTENCY_KEY_PATTERN = "[A-Za-z0-9_-]{16,256}";
+
     /**
      * 필수 문자열과 양수 금액을 검증한다.
      *
@@ -29,6 +31,11 @@ public record AutomaticPaymentRequest(
     public AutomaticPaymentRequest {
         requireText(externalPaymentId, "externalPaymentId");
         requireText(idempotencyKey, "idempotencyKey");
+        if (!idempotencyKey.matches(IDEMPOTENCY_KEY_PATTERN)) {
+            throw new IllegalArgumentException(
+                "idempotencyKey must be 16 to 256 ASCII letters, digits, hyphens, or underscores"
+            );
+        }
         requireText(externalMethodReference, "externalMethodReference");
         requireText(orderName, "orderName");
         requireText(currency, "currency");
@@ -47,7 +54,7 @@ public record AutomaticPaymentRequest(
     @Override
     public String toString() {
         return "AutomaticPaymentRequest[externalPaymentId=" + externalPaymentId
-            + ", idempotencyKey=" + idempotencyKey
+            + ", idempotencyKey=***"
             + ", externalMethodReference=***"
             + ", orderName=" + orderName
             + ", totalAmount=" + totalAmount

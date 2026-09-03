@@ -173,6 +173,29 @@ class FirstPaymentCompletionServiceTest {
         verify(paymentAttemptRepository, never()).save(any());
     }
 
+    @Test
+    void 외부_결제_ID가_거래_공개_ID와_다르면_결과를_확정하지_않는다() {
+        PaymentTransaction transaction = processingTransaction();
+        when(paymentTransactionRepository.findById(100L)).thenReturn(Optional.of(transaction));
+
+        FirstPaymentExecutionResult mismatchedResult = executionResult(AutomaticPaymentResult.success(
+            "different-payment-id",
+            "transaction-ref-1",
+            "PAID"
+        ));
+
+        assertThatThrownBy(() -> service.complete(
+            mismatchedResult,
+            List.of(new PaymentAllocationCommand(501L, 100_000L))
+        )).isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("External payment id");
+
+        assertThat(transaction.getStatus()).isEqualTo(PaymentTransactionStatus.PROCESSING);
+        verify(paymentAttemptRepository, never()).existsByIdempotencyKey(any());
+        verify(paymentAttemptRepository, never()).save(any());
+        verify(paymentAllocationRepository, never()).saveAll(any());
+    }
+
     private FirstPaymentExecutionResult successResult() {
         return executionResult(AutomaticPaymentResult.success(
             "portone-payment-1",
@@ -182,7 +205,7 @@ class FirstPaymentCompletionServiceTest {
     }
 
     private FirstPaymentExecutionResult failureResult() {
-        return executionResult(AutomaticPaymentResult.failure(
+        return executionResult(AutomaticPaymentResult.declined(
             "portone-payment-1",
             "DECLINED",
             "카드 승인이 거절되었습니다."
@@ -215,6 +238,7 @@ class FirstPaymentCompletionServiceTest {
             LocalDateTime.of(2026, 9, 3, 15, 0)
         );
         ReflectionTestUtils.setField(transaction, "id", 100L);
+        ReflectionTestUtils.setField(transaction, "publicId", "portone-payment-1");
         return transaction;
     }
 }

@@ -20,7 +20,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
@@ -44,8 +43,6 @@ class FirstPaymentExecutionServiceTest {
     private BillingKeyProtector billingKeyProtector;
     @Mock
     private AutomaticPaymentClient automaticPaymentClient;
-    @Mock
-    private ObjectProvider<AutomaticPaymentClient> automaticPaymentClientProvider;
 
     @InjectMocks
     private FirstPaymentExecutionService service;
@@ -68,7 +65,6 @@ class FirstPaymentExecutionServiceTest {
             .thenReturn("decrypted-billing-key");
         when(automaticPaymentClient.pay(org.mockito.ArgumentMatchers.any()))
             .thenReturn(providerResult);
-        when(automaticPaymentClientProvider.getIfAvailable()).thenReturn(automaticPaymentClient);
 
         FirstPaymentExecutionResult result = service.execute(
             new FirstPaymentExecutionCommand(100L, "챱챱 첫 구독 결제")
@@ -79,7 +75,7 @@ class FirstPaymentExecutionServiceTest {
         verify(automaticPaymentClient).pay(requestCaptor.capture());
         AutomaticPaymentRequest request = requestCaptor.getValue();
         assertThat(request.externalPaymentId()).isEqualTo(transaction.getPublicId());
-        assertThat(request.idempotencyKey()).isEqualTo("request-key-1");
+        assertThat(request.idempotencyKey()).isEqualTo("request-key-0001");
         assertThat(request.externalMethodReference()).isEqualTo("decrypted-billing-key");
         assertThat(request.totalAmount()).isEqualTo(100_000L);
         assertThat(result.paymentMethodId()).isEqualTo(200L);
@@ -116,24 +112,6 @@ class FirstPaymentExecutionServiceTest {
     }
 
     @Test
-    void 자동결제_Client가_아직_구성되지_않으면_보호값을_복호화하지_않는다() {
-        when(paymentTransactionRepository.findById(100L))
-            .thenReturn(Optional.of(processingTransaction()));
-        when(paymentMethodRepository.findByUserIdAndStatusAndIsCurrentTrueAndDeletedAtIsNull(
-            1L,
-            PaymentMethodStatus.AVAILABLE
-        )).thenReturn(Optional.of(currentPaymentMethod()));
-        when(automaticPaymentClientProvider.getIfAvailable()).thenReturn(null);
-
-        assertThatThrownBy(() -> service.execute(
-            new FirstPaymentExecutionCommand(100L, "챱챱 첫 구독 결제")
-        )).isInstanceOf(IllegalStateException.class)
-            .hasMessage("Automatic payment client is not configured");
-
-        verifyNoInteractions(billingKeyProtector, automaticPaymentClient);
-    }
-
-    @Test
     void Provider_응답을_받지_못하면_거래는_PROCESSING으로_남는다() {
         PaymentTransaction transaction = processingTransaction();
         PaymentMethod paymentMethod = currentPaymentMethod();
@@ -146,14 +124,13 @@ class FirstPaymentExecutionServiceTest {
             .thenReturn("decrypted-billing-key");
         when(automaticPaymentClient.pay(org.mockito.ArgumentMatchers.any()))
             .thenThrow(new IllegalStateException("provider unavailable"));
-        when(automaticPaymentClientProvider.getIfAvailable()).thenReturn(automaticPaymentClient);
 
         assertThatThrownBy(() -> service.execute(
             new FirstPaymentExecutionCommand(100L, "챱챱 첫 구독 결제")
         )).isInstanceOf(IllegalStateException.class);
 
         assertThat(transaction.getStatus()).isEqualTo(PaymentTransactionStatus.PROCESSING);
-        assertThat(transaction.getExternalRequestIdempotencyKey()).isEqualTo("request-key-1");
+        assertThat(transaction.getExternalRequestIdempotencyKey()).isEqualTo("request-key-0001");
         verify(paymentTransactionRepository, never()).save(transaction);
     }
 
@@ -166,7 +143,7 @@ class FirstPaymentExecutionServiceTest {
             LocalDateTime.of(2026, 9, 3, 15, 0),
             LocalDate.of(2026, 9, 7),
             LocalDate.of(2026, 10, 4),
-            "request-key-1",
+            "request-key-0001",
             LocalDateTime.of(2026, 9, 3, 15, 0)
         );
         ReflectionTestUtils.setField(transaction, "id", 100L);

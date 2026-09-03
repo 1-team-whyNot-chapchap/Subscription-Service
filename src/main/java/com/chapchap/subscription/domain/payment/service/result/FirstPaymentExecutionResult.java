@@ -49,6 +49,19 @@ public record FirstPaymentExecutionResult(
         }
     }
 
+    /** 외부 요청 멱등성 키가 일반 로그에 노출되지 않도록 문자열 표현에서 마스킹한다. */
+    @Override
+    public String toString() {
+        return "FirstPaymentExecutionResult[paymentTransactionId=" + paymentTransactionId
+            + ", paymentMethodId=" + paymentMethodId
+            + ", providerCode=" + providerCode
+            + ", idempotencyKey=***"
+            + ", requestedAmount=" + requestedAmount
+            + ", requestedAt=" + requestedAt
+            + ", respondedAt=" + respondedAt
+            + ", providerResult=" + providerResult + ']';
+    }
+
     private static void requirePositive(Long value, String fieldName) {
         if (value == null || value <= 0) {
             throw new IllegalArgumentException(fieldName + " must be positive");

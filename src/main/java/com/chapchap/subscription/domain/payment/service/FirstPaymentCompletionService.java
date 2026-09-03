@@ -70,7 +70,7 @@ public class FirstPaymentCompletionService {
         validateAttemptIsNotRecorded(executionResult.idempotencyKey());
 
         AutomaticPaymentResult providerResult = executionResult.providerResult();
-        if (providerResult.success()) {
+        if (providerResult.isPaid()) {
             List<PaymentAllocation> allocations = createValidatedAllocations(transaction, allocationCommands);
             PaymentAttempt attempt = createSuccessfulAttempt(executionResult);
 
@@ -111,6 +111,9 @@ public class FirstPaymentCompletionService {
         }
         if (!executionResult.idempotencyKey().equals(transaction.getExternalRequestIdempotencyKey())) {
             throw new IllegalArgumentException("Executed idempotency key does not match the payment transaction");
+        }
+        if (!transaction.getPublicId().equals(executionResult.providerResult().externalPaymentId())) {
+            throw new IllegalArgumentException("External payment id does not match the payment transaction");
         }
     }
 
