@@ -51,3 +51,16 @@ SELECT
     WHERE terms_type = 'NON_FACE_TO_FACE_STORAGE'
       AND version_number = 1
 );
+
+INSERT INTO plans (
+    public_id,
+    name,
+    description,
+    unit_price
+)
+VALUES
+    ('PLN-11111111-1111-4111-8111-111111111111', '간편식', '가볍고 빠르게 먹기 좋은 플랜', 7900),
+    ('PLN-22222222-2222-4222-8222-222222222222', '가정식', '영양 구성과 메뉴 구성이 다채로운 플랜', 8900),
+    ('PLN-33333333-3333-4333-8333-333333333333', '든든식', '양과 메뉴가 풍성한 플랜', 9900)
+    ON DUPLICATE KEY UPDATE
+                         public_id = public_id;
