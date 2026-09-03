@@ -1,14 +1,16 @@
 package com.chapchap.subscription.domain.payment.client;
 
-import com.chapchap.subscription.global.exception.payment.PaymentProviderAuthenticationFailedException;
 import com.chapchap.subscription.global.exception.payment.PaymentProviderUnavailableException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -93,24 +95,119 @@ class PortOneAutomaticPaymentClientTest {
 
         assertThat(result.status()).isEqualTo(AutomaticPaymentStatus.DECLINED);
         assertThat(result.externalResultCode()).isEqualTo("DECLINED");
-        assertThat(result.failureReason())
-            .contains("***")
-            .doesNotContain(BILLING_KEY);
+        assertThat(result.failureReason()).doesNotContain(BILLING_KEY).doesNotContain("승인 거절");
         assertThat(result.externalTransactionRef()).isNull();
         server.verify();
     }
 
     @Test
-    void 인증_실패는_전용_예외로_변환하고_응답_원문을_노출하지_않는다() {
+    void 인증_실패는_저장_가능한_서버_연동_실패_결과로_변환한다() {
         server.expect(requestTo(BASE_URL + "/payments/" + PAYMENT_ID + "/billing-key"))
             .andRespond(withStatus(HttpStatus.UNAUTHORIZED)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body("{\"type\":\"UNAUTHORIZED\",\"message\":\"secret response\"}"));
 
+        AutomaticPaymentResult result = client.pay(request());
+
+        assertThat(result.status()).isEqualTo(AutomaticPaymentStatus.PROVIDER_CONFIGURATION_FAILED);
+        assertThat(result.externalResultCode()).isEqualTo("HTTP_401");
+        assertThat(result.failureReason()).doesNotContain("secret response").doesNotContain(BILLING_KEY);
+        server.verify();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "BILLING_KEY_NOT_FOUND",
+        "BILLING_KEY_ALREADY_DELETED",
+        "BillingKeyNotFoundError",
+        "BillingKeyAlreadyDeletedError"
+    })
+    void 사용할_수_없는_빌링키_오류는_명시적_결제_거절로_변환한다(String errorType) {
+        server.expect(requestTo(BASE_URL + "/payments/" + PAYMENT_ID + "/billing-key"))
+            .andRespond(withStatus(HttpStatus.BAD_REQUEST)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("{\"type\":\"" + errorType + "\",\"message\":\"provider detail\"}"));
+
+        AutomaticPaymentResult result = client.pay(request());
+
+        assertThat(result.status()).isEqualTo(AutomaticPaymentStatus.DECLINED);
+        assertThat(result.externalResultCode()).isEqualTo(errorType);
+        assertThat(result.failureReason()).doesNotContain("provider detail");
+        server.verify();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "INVALID_REQUEST",
+        "CHANNEL_NOT_FOUND",
+        "InvalidRequestError",
+        "ChannelNotFoundError"
+    })
+    void 서버가_만든_요청과_채널_설정_오류는_서버_연동_실패로_변환한다(String errorType) {
+        server.expect(requestTo(BASE_URL + "/payments/" + PAYMENT_ID + "/billing-key"))
+            .andRespond(withStatus(HttpStatus.BAD_REQUEST)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("{\"type\":\"" + errorType + "\",\"message\":\"provider detail\"}"));
+
+        AutomaticPaymentResult result = client.pay(request());
+
+        assertThat(result.status()).isEqualTo(AutomaticPaymentStatus.PROVIDER_CONFIGURATION_FAILED);
+        assertThat(result.externalResultCode()).isEqualTo(errorType);
+        assertThat(result.failureReason()).doesNotContain("provider detail");
+        server.verify();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "ALREADY_PAID",
+        "PG_PROVIDER",
+        "AlreadyPaidError",
+        "PgProviderError"
+    })
+    void 승인_여부를_확정할_수_없는_오류는_처리_대기_예외로_변환한다(String errorType) {
+        server.expect(requestTo(BASE_URL + "/payments/" + PAYMENT_ID + "/billing-key"))
+            .andRespond(withStatus(HttpStatus.CONFLICT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("{\"type\":\"" + errorType + "\",\"message\":\"provider detail\"}"));
+
         assertThatThrownBy(() -> client.pay(request()))
-            .isInstanceOf(PaymentProviderAuthenticationFailedException.class)
-            .hasMessageNotContaining("secret response")
-            .hasMessageNotContaining(BILLING_KEY);
+            .isInstanceOf(PaymentProviderUnavailableException.class)
+            .hasMessageNotContaining("provider detail");
+        server.verify();
+    }
+
+    @Test
+    void 요청_제한_응답은_자동_재시도하지_않고_처리_대기_예외로_변환한다() {
+        server.expect(requestTo(BASE_URL + "/payments/" + PAYMENT_ID + "/billing-key"))
+            .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
+
+        assertThatThrownBy(() -> client.pay(request()))
+            .isInstanceOf(PaymentProviderUnavailableException.class);
+        server.verify();
+    }
+
+    @Test
+    void 연결_실패는_결과를_확정하지_않고_처리_대기_예외로_변환한다() {
+        server.expect(requestTo(BASE_URL + "/payments/" + PAYMENT_ID + "/billing-key"))
+            .andRespond(request -> {
+                throw new ResourceAccessException("simulated connection failure");
+            });
+
+        assertThatThrownBy(() -> client.pay(request()))
+            .isInstanceOf(PaymentProviderUnavailableException.class)
+            .hasMessageNotContaining("simulated connection failure");
+        server.verify();
+    }
+
+    @Test
+    void 오류_Body를_파싱할_수_없으면_결과를_추측하지_않는다() {
+        server.expect(requestTo(BASE_URL + "/payments/" + PAYMENT_ID + "/billing-key"))
+            .andRespond(withStatus(HttpStatus.BAD_REQUEST)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("not-json"));
+
+        assertThatThrownBy(() -> client.pay(request()))
+            .isInstanceOf(PaymentProviderUnavailableException.class);
         server.verify();
     }
 

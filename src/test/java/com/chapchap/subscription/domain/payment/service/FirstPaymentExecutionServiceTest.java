@@ -14,6 +14,7 @@ import com.chapchap.subscription.domain.payment.security.BillingKeyProtector;
 import com.chapchap.subscription.domain.payment.service.command.FirstPaymentExecutionCommand;
 import com.chapchap.subscription.domain.payment.service.exception.CurrentPaymentMethodUnavailableException;
 import com.chapchap.subscription.domain.payment.service.result.FirstPaymentExecutionResult;
+import com.chapchap.subscription.global.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -93,7 +94,12 @@ class FirstPaymentExecutionServiceTest {
 
         assertThatThrownBy(() -> service.execute(
             new FirstPaymentExecutionCommand(100L, "챱챱 첫 구독 결제")
-        )).isInstanceOf(CurrentPaymentMethodUnavailableException.class);
+        )).isInstanceOf(CurrentPaymentMethodUnavailableException.class)
+            .isInstanceOfSatisfying(
+                CurrentPaymentMethodUnavailableException.class,
+                exception -> assertThat(exception.getErrorCode())
+                    .isEqualTo(ErrorCode.CURRENT_PAYMENT_METHOD_REQUIRED)
+            );
 
         verifyNoInteractions(billingKeyProtector, automaticPaymentClient);
     }

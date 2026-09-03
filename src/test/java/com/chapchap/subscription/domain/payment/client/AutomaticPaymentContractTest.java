@@ -45,6 +45,18 @@ class AutomaticPaymentContractTest {
 
         assertNull(success.failureReason());
         assertNull(failure.externalTransactionRef());
+
+        AutomaticPaymentResult configurationFailure =
+            AutomaticPaymentResult.providerConfigurationFailed(
+                "external-payment-3",
+                "CHANNELNOTFOUND",
+                "외부 결제 연동 설정 오류가 발생했습니다."
+            );
+        assertEquals(
+            AutomaticPaymentStatus.PROVIDER_CONFIGURATION_FAILED,
+            configurationFailure.status()
+        );
+        assertNull(configurationFailure.externalTransactionRef());
     }
 
     @Test

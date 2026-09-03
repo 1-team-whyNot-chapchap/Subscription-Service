@@ -1,6 +1,7 @@
 package com.chapchap.subscription.domain.payment.service;
 
 import com.chapchap.subscription.domain.payment.client.AutomaticPaymentResult;
+import com.chapchap.subscription.domain.payment.client.AutomaticPaymentStatus;
 import com.chapchap.subscription.domain.payment.entity.PaymentAllocation;
 import com.chapchap.subscription.domain.payment.entity.PaymentAttempt;
 import com.chapchap.subscription.domain.payment.entity.PaymentAttemptResult;
@@ -65,6 +66,7 @@ class FirstPaymentCompletionServiceTest {
         assertThat(transaction.getExternalRequestIdempotencyKey()).isNull();
         assertThat(result.attemptResult()).isEqualTo(PaymentAttemptResult.SUCCESS);
         assertThat(result.allocationCount()).isEqualTo(2);
+        assertThat(result.providerStatus()).isEqualTo(AutomaticPaymentStatus.PAID);
 
         ArgumentCaptor<PaymentAttempt> attemptCaptor = ArgumentCaptor.forClass(PaymentAttempt.class);
         verify(paymentAttemptRepository).save(attemptCaptor.capture());
@@ -90,6 +92,30 @@ class FirstPaymentCompletionServiceTest {
         assertThat(transaction.getStatus()).isEqualTo(PaymentTransactionStatus.FAILED);
         assertThat(result.attemptResult()).isEqualTo(PaymentAttemptResult.FAILURE);
         assertThat(result.allocationCount()).isZero();
+        assertThat(result.providerStatus()).isEqualTo(AutomaticPaymentStatus.DECLINED);
+        verify(paymentAttemptRepository).save(any(PaymentAttempt.class));
+        verify(paymentAllocationRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void Provider_설정_오류는_실패를_저장한_뒤_PAYMENT_002_분류를_반환한다() {
+        PaymentTransaction transaction = processingTransaction();
+        when(paymentTransactionRepository.findById(100L)).thenReturn(Optional.of(transaction));
+        when(paymentAttemptRepository.existsByIdempotencyKey("request-key-1")).thenReturn(false);
+        FirstPaymentExecutionResult executionResult = executionResult(
+            AutomaticPaymentResult.providerConfigurationFailed(
+                "portone-payment-1",
+                "CHANNELNOTFOUND",
+                "외부 결제 연동 설정 오류가 발생했습니다."
+            )
+        );
+
+        CompletedFirstPayment result = service.complete(executionResult, List.of());
+
+        assertThat(transaction.getStatus()).isEqualTo(PaymentTransactionStatus.FAILED);
+        assertThat(transaction.getExternalRequestIdempotencyKey()).isNull();
+        assertThat(result.providerStatus())
+            .isEqualTo(AutomaticPaymentStatus.PROVIDER_CONFIGURATION_FAILED);
         verify(paymentAttemptRepository).save(any(PaymentAttempt.class));
         verify(paymentAllocationRepository, never()).saveAll(any());
     }

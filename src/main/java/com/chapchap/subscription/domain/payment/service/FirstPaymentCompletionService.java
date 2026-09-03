@@ -48,7 +48,7 @@ public class FirstPaymentCompletionService {
     }
 
     /**
-     * 외부 결제의 명시적 성공 또는 거절 응답을 로컬 결제 데이터에 확정한다.
+     * 외부 결제의 명시적 성공·결제 거절·서버 연동 실패를 로컬 결제 데이터에 확정한다.
      *
      * <p>timeout처럼 결과를 받지 못한 경우에는 실행 결과 자체가 만들어지지 않으므로
      * 이 메서드를 호출하지 않는다. 그 경우 거래는 처리 중 상태로 남는다.</p>
@@ -82,7 +82,8 @@ public class FirstPaymentCompletionService {
                 transaction.getId(),
                 transaction.getStatus(),
                 PaymentAttemptResult.SUCCESS,
-                allocations.size()
+                allocations.size(),
+                providerResult.status()
             );
         }
 
@@ -95,7 +96,8 @@ public class FirstPaymentCompletionService {
             transaction.getId(),
             transaction.getStatus(),
             PaymentAttemptResult.FAILURE,
-            0
+            0,
+            providerResult.status()
         );
     }
 
