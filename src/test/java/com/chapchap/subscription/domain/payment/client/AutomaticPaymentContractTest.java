@@ -11,6 +11,7 @@ class AutomaticPaymentContractTest {
     void convertsProviderNeutralRequestToPortOneBody() {
         AutomaticPaymentRequest request = new AutomaticPaymentRequest(
             "external-payment-1",
+            "idempotency-key-1",
             "test-external-method-ref",
             "챱챱 첫 구독 결제",
             100_000L,
@@ -48,6 +49,7 @@ class AutomaticPaymentContractTest {
             IllegalArgumentException.class,
             () -> new AutomaticPaymentRequest(
                 "external-payment-1",
+                "idempotency-key-1",
                 "test-external-method-ref",
                 "챱챱 첫 구독 결제",
                 0L,
@@ -60,6 +62,7 @@ class AutomaticPaymentContractTest {
     void sensitiveMethodReferenceIsRedactedFromStringRepresentations() {
         AutomaticPaymentRequest request = new AutomaticPaymentRequest(
             "external-payment-1",
+            "idempotency-key-1",
             "test-sensitive-method-reference",
             "챱챱 첫 구독 결제",
             100_000L,

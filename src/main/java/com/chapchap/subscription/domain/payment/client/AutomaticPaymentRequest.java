@@ -7,6 +7,7 @@ package com.chapchap.subscription.domain.payment.client;
  * 저장하거나 로그에 출력하지 않고 Provider Client 호출 범위에서만 사용한다.</p>
  *
  * @param externalPaymentId 외부 결제 제공자에 전달할 결제 건 식별자
+ * @param idempotencyKey 같은 외부 요청의 중복 처리를 막기 위한 멱등성 키
  * @param externalMethodReference 외부 요청 직전에 복호화한 결제수단 참조값
  * @param orderName 외부 결제 내역에 표시할 주문명
  * @param totalAmount 결제를 요청할 총금액
@@ -14,6 +15,7 @@ package com.chapchap.subscription.domain.payment.client;
  */
 public record AutomaticPaymentRequest(
     String externalPaymentId,
+    String idempotencyKey,
     String externalMethodReference,
     String orderName,
     long totalAmount,
@@ -26,6 +28,7 @@ public record AutomaticPaymentRequest(
      */
     public AutomaticPaymentRequest {
         requireText(externalPaymentId, "externalPaymentId");
+        requireText(idempotencyKey, "idempotencyKey");
         requireText(externalMethodReference, "externalMethodReference");
         requireText(orderName, "orderName");
         requireText(currency, "currency");
@@ -44,6 +47,7 @@ public record AutomaticPaymentRequest(
     @Override
     public String toString() {
         return "AutomaticPaymentRequest[externalPaymentId=" + externalPaymentId
+            + ", idempotencyKey=" + idempotencyKey
             + ", externalMethodReference=***"
             + ", orderName=" + orderName
             + ", totalAmount=" + totalAmount
