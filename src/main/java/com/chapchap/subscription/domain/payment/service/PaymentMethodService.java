@@ -7,6 +7,7 @@ import com.chapchap.subscription.domain.payment.entity.PaymentMethodStatus;
 import com.chapchap.subscription.domain.payment.entity.PaymentProviderCode;
 import com.chapchap.subscription.domain.payment.repository.PaymentMethodRepository;
 import com.chapchap.subscription.domain.payment.security.BillingKeyProtector;
+import com.chapchap.subscription.global.exception.payment.CurrentPaymentMethodDeleteNotAllowedException;
 import com.chapchap.subscription.global.exception.payment.PaymentMethodInvalidException;
 import com.chapchap.subscription.global.exception.payment.PaymentMethodNotFoundException;
 import com.chapchap.subscription.global.exception.payment.PaymentMethodRegistrationConflictException;
@@ -32,6 +33,7 @@ public class PaymentMethodService {
     private final PortOnePaymentMethodClient portOnePaymentMethodClient;
     private final BillingKeyProtector billingKeyProtector;
     private final TransactionTemplate transactionTemplate;
+    private final OngoingSubscriptionReader ongoingSubscriptionReader;
 
     public PaymentMethod registerPaymentMethod(Long userId, String billingKey) {
         PaymentMethodVerificationResult verificationResult = portOnePaymentMethodClient.verifyBillingKey(billingKey);
@@ -99,6 +101,25 @@ public class PaymentMethodService {
         selectedPaymentMethod.selectAsCurrent(LocalDateTime.now(BUSINESS_ZONE_ID));
 
         return selectedPaymentMethod;
+    }
+
+    @Transactional
+    public PaymentMethod deletePaymentMethod(Long userId, String paymentMethodId) {
+        PaymentMethod paymentMethod = paymentMethodRepository
+                .findByPublicIdAndUserIdAndStatusAndDeletedAtIsNull(
+                    paymentMethodId
+                    , userId
+                    , PaymentMethodStatus.AVAILABLE
+                )
+                .orElseThrow(PaymentMethodNotFoundException::new);
+
+        if (paymentMethod.isCurrent() && ongoingSubscriptionReader.existsOngoingSubscription(userId)) {
+            throw new CurrentPaymentMethodDeleteNotAllowedException();
+        }
+
+        paymentMethod.markAsDeleted(LocalDateTime.now(BUSINESS_ZONE_ID));
+
+        return paymentMethod;
     }
 
     private PaymentMethod registerVerifiedPaymentMethod(

@@ -168,6 +168,12 @@ public class PaymentMethod {
         this.lastSelectedAt = selectedAt;
     }
 
+    public void markAsDeleted(LocalDateTime retirementAt) {
+        this.status = PaymentMethodStatus.DELETED;
+        this.isCurrent = false;
+        this.retirementAt = retirementAt;
+    }
+
     private static String generatePublicId() {
         return PUBLIC_ID_PREFIX + UUID.randomUUID();
     }

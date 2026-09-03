@@ -6,6 +6,7 @@ import com.chapchap.subscription.domain.payment.entity.PaymentMethod;
 import com.chapchap.subscription.domain.payment.request.PaymentMethodCreateRequest;
 import com.chapchap.subscription.domain.payment.response.PaymentMethodCreateResponse;
 import com.chapchap.subscription.domain.payment.response.PaymentMethodCurrentResponse;
+import com.chapchap.subscription.domain.payment.response.PaymentMethodDeleteResponse;
 import com.chapchap.subscription.global.response.GlobalResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -58,6 +59,19 @@ public class PaymentMethodController {
         Long userId = Long.parseLong(authentication.getName());
         PaymentMethod paymentMethod = paymentMethodService.selectCurrentPaymentMethod(userId, paymentMethodId);
         PaymentMethodCurrentResponse response = PaymentMethodCurrentResponse.from(paymentMethod);
+
+        return ResponseEntity.ok(GlobalResponse.success(response));
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @DeleteMapping("/{paymentMethodId}")
+    public ResponseEntity<GlobalResponse<PaymentMethodDeleteResponse>> deletePaymentMethod(
+            @PathVariable String paymentMethodId
+            , Authentication authentication
+    ) {
+        Long userId = Long.parseLong(authentication.getName());
+        PaymentMethod paymentMethod = paymentMethodService.deletePaymentMethod(userId, paymentMethodId);
+        PaymentMethodDeleteResponse response = PaymentMethodDeleteResponse.from(paymentMethod);
 
         return ResponseEntity.ok(GlobalResponse.success(response));
     }
