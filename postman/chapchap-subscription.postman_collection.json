@@ -1,0 +1,349 @@
+{
+  "info": {
+    "_postman_id": "c8d7672d-e878-46ca-83e2-541a0ef4c2e3",
+    "name": "chapchap-subscription",
+    "description": "Subscription Service HTTP 검증용 공용 Collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "SUB-FN-003",
+      "item": [
+        {
+          "name": "00 Setup - 테스트 고객 결제수단 탐색",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id", "value": "{{testUserId}}", "type": "text" },
+              { "key": "X-User-Role", "value": "{{testUserRole}}", "type": "text" }
+            ],
+            "url": "{{baseUrl}}/api/subscription/payment-methods",
+            "description": "테스트 고객의 최초 현재 수단과 선택 대상 비현재 수단을 찾는다."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Setup: 목록 조회가 성공한다', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "const methods = body && body.data && Array.isArray(body.data.paymentMethods)",
+                  "  ? body.data.paymentMethods",
+                  "  : [];",
+                  "const currentMethods = methods.filter(method => method.isCurrent === true);",
+                  "const targetMethod = methods.find(method => method.isCurrent === false);",
+                  "",
+                  "pm.test('Setup: 테스트 고객에게 현재 수단이 정확히 하나 존재한다', function () {",
+                  "  pm.expect(currentMethods.length).to.eql(1);",
+                  "});",
+                  "pm.test('Setup: 선택할 비현재 수단이 존재한다', function () {",
+                  "  pm.expect(targetMethod).to.not.equal(undefined);",
+                  "});",
+                  "",
+                  "if (currentMethods.length === 1 && targetMethod) {",
+                  "  pm.collectionVariables.set('originalCurrentPaymentMethodId', currentMethods[0].paymentMethodId);",
+                  "  pm.collectionVariables.set('targetPaymentMethodId', targetMethod.paymentMethodId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "00 Setup - 다른 고객 결제수단 탐색",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id", "value": "{{otherUserId}}", "type": "text" },
+              { "key": "X-User-Role", "value": "{{testUserRole}}", "type": "text" }
+            ],
+            "url": "{{baseUrl}}/api/subscription/payment-methods",
+            "description": "소유권 은닉 실패 시나리오에 사용할 다른 고객의 결제수단을 찾는다."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Setup: 다른 고객 목록 조회가 성공한다', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "const methods = body && body.data && Array.isArray(body.data.paymentMethods)",
+                  "  ? body.data.paymentMethods",
+                  "  : [];",
+                  "",
+                  "pm.test('Setup: 다른 고객에게 사용 가능한 수단이 존재한다', function () {",
+                  "  pm.expect(methods.length).to.be.greaterThan(0);",
+                  "});",
+                  "",
+                  "if (methods.length > 0) {",
+                  "  pm.collectionVariables.set('otherUserPaymentMethodId', methods[0].paymentMethodId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "01 본인의 다른 결제수단 선택",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "X-User-Id", "value": "{{testUserId}}", "type": "text" },
+              { "key": "X-User-Role", "value": "{{testUserRole}}", "type": "text" }
+            ],
+            "url": "{{baseUrl}}/api/subscription/payment-methods/{{targetPaymentMethodId}}/current",
+            "description": "본인의 AVAILABLE 비현재 수단을 현재 수단으로 변경한다."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('01: HTTP 200을 반환한다', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('01: 선택한 결제수단을 현재 수단으로 반환한다', function () {",
+                  "  pm.expect(body.code).to.eql('00');",
+                  "  pm.expect(body.message).to.eql('SUCCESS');",
+                  "  pm.expect(body.data.paymentMethodId).to.eql(pm.collectionVariables.get('targetPaymentMethodId'));",
+                  "  pm.expect(body.data.isCurrent).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "01 Verify - 현재 수단 변경 결과",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id", "value": "{{testUserId}}", "type": "text" },
+              { "key": "X-User-Role", "value": "{{testUserRole}}", "type": "text" }
+            ],
+            "url": "{{baseUrl}}/api/subscription/payment-methods",
+            "description": "변경 후 현재 수단이 정확히 하나이고 기존 수단이 해제됐는지 확인한다."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('01 Verify: HTTP 200을 반환한다', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const methods = pm.response.json().data.paymentMethods;",
+                  "const currentMethods = methods.filter(method => method.isCurrent === true);",
+                  "const original = methods.find(method => method.paymentMethodId === pm.collectionVariables.get('originalCurrentPaymentMethodId'));",
+                  "pm.test('01 Verify: 선택한 수단만 현재 수단이다', function () {",
+                  "  pm.expect(currentMethods.length).to.eql(1);",
+                  "  pm.expect(currentMethods[0].paymentMethodId).to.eql(pm.collectionVariables.get('targetPaymentMethodId'));",
+                  "  pm.expect(original.isCurrent).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 이미 현재인 결제수단 재선택",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "X-User-Id", "value": "{{testUserId}}", "type": "text" },
+              { "key": "X-User-Role", "value": "{{testUserRole}}", "type": "text" }
+            ],
+            "url": "{{baseUrl}}/api/subscription/payment-methods/{{targetPaymentMethodId}}/current",
+            "description": "이미 현재인 수단의 재선택을 멱등 성공으로 처리한다. last_selected_at 불변은 별도 DB 확인 대상이다."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('02: HTTP 200을 반환한다', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('02: 같은 결제수단을 현재 수단으로 반환한다', function () {",
+                  "  pm.expect(body.code).to.eql('00');",
+                  "  pm.expect(body.data.paymentMethodId).to.eql(pm.collectionVariables.get('targetPaymentMethodId'));",
+                  "  pm.expect(body.data.isCurrent).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 인증 헤더 없이 요청",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/subscription/payment-methods/{{targetPaymentMethodId}}/current",
+            "description": "Gateway 인증 사용자 문맥이 없는 요청을 거절한다."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('03: HTTP 401을 반환한다', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('03: AUTH_001을 반환한다', function () {",
+                  "  pm.expect(body.code).to.eql('AUTH_001');",
+                  "  pm.expect(body.data).to.eql(null);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 존재하지 않는 결제수단 선택",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "X-User-Id", "value": "{{testUserId}}", "type": "text" },
+              { "key": "X-User-Role", "value": "{{testUserRole}}", "type": "text" }
+            ],
+            "url": "{{baseUrl}}/api/subscription/payment-methods/PAY-00000000-0000-4000-8000-000000000000/current",
+            "description": "존재하지 않는 공개 식별자를 PAYMENT_005로 처리한다."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('04: HTTP 404를 반환한다', function () {",
+                  "  pm.response.to.have.status(404);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('04: PAYMENT_005를 반환한다', function () {",
+                  "  pm.expect(body.code).to.eql('PAYMENT_005');",
+                  "  pm.expect(body.data).to.eql(null);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 다른 고객의 결제수단 선택",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "X-User-Id", "value": "{{testUserId}}", "type": "text" },
+              { "key": "X-User-Role", "value": "{{testUserRole}}", "type": "text" }
+            ],
+            "url": "{{baseUrl}}/api/subscription/payment-methods/{{otherUserPaymentMethodId}}/current",
+            "description": "다른 고객의 수단 존재 여부를 노출하지 않고 PAYMENT_005로 처리한다."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('05: HTTP 404를 반환한다', function () {",
+                  "  pm.response.to.have.status(404);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('05: PAYMENT_005를 반환한다', function () {",
+                  "  pm.expect(body.code).to.eql('PAYMENT_005');",
+                  "  pm.expect(body.data).to.eql(null);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 최초 현재 결제수단으로 복원",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "X-User-Id", "value": "{{testUserId}}", "type": "text" },
+              { "key": "X-User-Role", "value": "{{testUserRole}}", "type": "text" }
+            ],
+            "url": "{{baseUrl}}/api/subscription/payment-methods/{{originalCurrentPaymentMethodId}}/current",
+            "description": "테스트가 변경한 현재 수단을 실행 전 상태로 복원한다."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('06: HTTP 200을 반환한다', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('06: 최초 현재 결제수단을 복원한다', function () {",
+                  "  pm.expect(body.code).to.eql('00');",
+                  "  pm.expect(body.data.paymentMethodId).to.eql(pm.collectionVariables.get('originalCurrentPaymentMethodId'));",
+                  "  pm.expect(body.data.isCurrent).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 Verify - 복원 결과",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id", "value": "{{testUserId}}", "type": "text" },
+              { "key": "X-User-Role", "value": "{{testUserRole}}", "type": "text" }
+            ],
+            "url": "{{baseUrl}}/api/subscription/payment-methods",
+            "description": "테스트 고객의 현재 수단이 실행 전 상태로 복원됐는지 확인한다."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('06 Verify: HTTP 200을 반환한다', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const methods = pm.response.json().data.paymentMethods;",
+                  "const currentMethods = methods.filter(method => method.isCurrent === true);",
+                  "const target = methods.find(method => method.paymentMethodId === pm.collectionVariables.get('targetPaymentMethodId'));",
+                  "pm.test('06 Verify: 최초 수단만 현재 수단이다', function () {",
+                  "  pm.expect(currentMethods.length).to.eql(1);",
+                  "  pm.expect(currentMethods[0].paymentMethodId).to.eql(pm.collectionVariables.get('originalCurrentPaymentMethodId'));",
+                  "  pm.expect(target.isCurrent).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "originalCurrentPaymentMethodId", "value": "" },
+    { "key": "targetPaymentMethodId", "value": "" },
+    { "key": "otherUserPaymentMethodId", "value": "" }
+  ]
+}

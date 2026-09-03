@@ -16,6 +16,7 @@ public enum ErrorCode {
     , PAYMENT_PROVIDER_AUTHENTICATION_FAILED("PAYMENT_002", HttpStatus.INTERNAL_SERVER_ERROR, "결제 서비스 연동 중 오류가 발생했습니다.")
     , PAYMENT_PROVIDER_UNAVAILABLE("PAYMENT_003", HttpStatus.BAD_GATEWAY, "결제 서비스를 일시적으로 이용할 수 없습니다.")
     , PAYMENT_METHOD_REGISTRATION_CONFLICT("PAYMENT_004", HttpStatus.CONFLICT, "자동결제수단 등록 중 상태 충돌이 발생했습니다.")
+    , PAYMENT_METHOD_NOT_FOUND("PAYMENT_005", HttpStatus.NOT_FOUND, "자동결제수단을 찾을 수 없습니다.")
 
     // === Address ===
     , ADDRESS_NOT_FOUND("ADDRESS_001", HttpStatus.NOT_FOUND, "배송지를 찾을 수 없습니다.")

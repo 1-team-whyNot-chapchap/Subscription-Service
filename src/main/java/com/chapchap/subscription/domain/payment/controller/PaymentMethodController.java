@@ -5,6 +5,7 @@ import com.chapchap.subscription.domain.payment.service.PaymentMethodService;
 import com.chapchap.subscription.domain.payment.entity.PaymentMethod;
 import com.chapchap.subscription.domain.payment.request.PaymentMethodCreateRequest;
 import com.chapchap.subscription.domain.payment.response.PaymentMethodCreateResponse;
+import com.chapchap.subscription.domain.payment.response.PaymentMethodCurrentResponse;
 import com.chapchap.subscription.global.response.GlobalResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +45,19 @@ public class PaymentMethodController {
         List<PaymentMethod> paymentMethods = paymentMethodService.getAvailablePaymentMethods(userId);
 
         PaymentMethodListResponse response = PaymentMethodListResponse.from(paymentMethods);
+
+        return ResponseEntity.ok(GlobalResponse.success(response));
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @PatchMapping("/{paymentMethodId}/current")
+    public ResponseEntity<GlobalResponse<PaymentMethodCurrentResponse>> selectCurrentPaymentMethod(
+        @PathVariable String paymentMethodId
+        , Authentication authentication
+    ) {
+        Long userId = Long.parseLong(authentication.getName());
+        PaymentMethod paymentMethod = paymentMethodService.selectCurrentPaymentMethod(userId, paymentMethodId);
+        PaymentMethodCurrentResponse response = PaymentMethodCurrentResponse.from(paymentMethod);
 
         return ResponseEntity.ok(GlobalResponse.success(response));
     }

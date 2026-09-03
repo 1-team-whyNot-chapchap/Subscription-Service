@@ -159,6 +159,15 @@ public class PaymentMethod {
         );
     }
 
+    public void unsetCurrent() {
+        this.isCurrent = false;
+    }
+
+    public void selectAsCurrent(LocalDateTime selectedAt) {
+        this.isCurrent = true;
+        this.lastSelectedAt = selectedAt;
+    }
+
     private static String generatePublicId() {
         return PUBLIC_ID_PREFIX + UUID.randomUUID();
     }

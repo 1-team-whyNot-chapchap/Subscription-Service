@@ -8,6 +8,7 @@ import com.chapchap.subscription.domain.payment.entity.PaymentProviderCode;
 import com.chapchap.subscription.domain.payment.repository.PaymentMethodRepository;
 import com.chapchap.subscription.domain.payment.security.BillingKeyProtector;
 import com.chapchap.subscription.global.exception.payment.PaymentMethodInvalidException;
+import com.chapchap.subscription.global.exception.payment.PaymentMethodNotFoundException;
 import com.chapchap.subscription.global.exception.payment.PaymentMethodRegistrationConflictException;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.exception.ConstraintViolationException;
@@ -65,6 +66,39 @@ public class PaymentMethodService {
                 userId
                 , PaymentMethodStatus.AVAILABLE
             );
+    }
+
+    @Transactional
+    public PaymentMethod selectCurrentPaymentMethod(Long userId, String paymentMethodId) {
+        PaymentMethod selectedPaymentMethod = paymentMethodRepository
+                .findByPublicIdAndUserIdAndStatusAndDeletedAtIsNull(
+                    paymentMethodId
+                    , userId
+                    , PaymentMethodStatus.AVAILABLE
+                )
+                .orElseThrow(PaymentMethodNotFoundException::new);
+
+        if (selectedPaymentMethod.isCurrent()) {
+            return selectedPaymentMethod;
+        }
+
+        PaymentMethod currentPaymentMethod = paymentMethodRepository
+                .findByUserIdAndStatusAndIsCurrentTrueAndDeletedAtIsNull(
+                    userId
+                    , PaymentMethodStatus.AVAILABLE
+                )
+                .orElse(null);
+
+        if (currentPaymentMethod != null) {
+            currentPaymentMethod.unsetCurrent();
+
+            // 현재 결제수단 UNIQUE 제약 충돌을 피하기 위해 기존 수단 해제를 먼저 반영한다.
+            paymentMethodRepository.flush();
+        }
+
+        selectedPaymentMethod.selectAsCurrent(LocalDateTime.now(BUSINESS_ZONE_ID));
+
+        return selectedPaymentMethod;
     }
 
     private PaymentMethod registerVerifiedPaymentMethod(

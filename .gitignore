@@ -22,6 +22,11 @@ bin/
 *.iws
 *.iml
 *.ipr
+
+### Postman local files ###
+postman/environments/*.postman_environment.json
+!postman/environments/*.example.postman_environment.json
+postman/reports/
 out/
 !**/src/main/**/out/
 !**/src/test/**/out/
