@@ -1,0 +1,188 @@
+package com.chapchap.subscription.domain.payment.repository;
+
+import com.chapchap.subscription.domain.payment.entity.PaymentAllocation;
+import com.chapchap.subscription.domain.payment.entity.PaymentAllocationType;
+import com.chapchap.subscription.domain.payment.entity.PaymentAttempt;
+import com.chapchap.subscription.domain.payment.entity.PaymentAttemptResult;
+import com.chapchap.subscription.domain.payment.entity.PaymentProviderCode;
+import com.chapchap.subscription.domain.payment.entity.PaymentTransaction;
+import jakarta.persistence.EntityManager;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.concurrent.ThreadLocalRandom;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+@SpringBootTest
+@ActiveProfiles("local")
+@Transactional
+class PaymentRepositoryIntegrationTest {
+    private static final LocalDateTime REQUESTED_AT = LocalDateTime.of(2026, 9, 4, 10, 0);
+    private static final LocalDateTime RESPONDED_AT = REQUESTED_AT.plusSeconds(1);
+
+    @Autowired
+    private PaymentTransactionRepository paymentTransactionRepository;
+
+    @Autowired
+    private PaymentAttemptRepository paymentAttemptRepository;
+
+    @Autowired
+    private PaymentAllocationRepository paymentAllocationRepository;
+
+    @Autowired
+    private EntityManager entityManager;
+
+    @Test
+    void 같은_업무_중복방지_키의_거래는_MySQL_UNIQUE_제약으로_거절된다() {
+        long subscriptionPeriodId = uniquePositiveId();
+        paymentTransactionRepository.saveAndFlush(transaction(subscriptionPeriodId, uniqueKey("external")));
+
+        assertThatThrownBy(() -> paymentTransactionRepository.saveAndFlush(
+            transaction(subscriptionPeriodId, uniqueKey("external"))
+        )).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void 처리_중_거래의_같은_외부요청_멱등성_키는_MySQL_UNIQUE_제약으로_거절된다() {
+        String externalRequestIdempotencyKey = uniqueKey("external");
+        paymentTransactionRepository.saveAndFlush(
+            transaction(uniquePositiveId(), externalRequestIdempotencyKey)
+        );
+
+        assertThatThrownBy(() -> paymentTransactionRepository.saveAndFlush(
+            transaction(uniquePositiveId(), externalRequestIdempotencyKey)
+        )).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void 같은_거래와_시도순번의_결제시도는_MySQL_UNIQUE_제약으로_거절된다() {
+        long transactionId = savedTransaction().getId();
+        paymentAttemptRepository.saveAndFlush(successAttempt(transactionId, 1, uniqueKey("attempt")));
+
+        assertThatThrownBy(() -> paymentAttemptRepository.saveAndFlush(
+            successAttempt(transactionId, 1, uniqueKey("attempt"))
+        )).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void 같은_멱등성_키의_결제시도는_MySQL_UNIQUE_제약으로_거절된다() {
+        String idempotencyKey = uniqueKey("attempt");
+        paymentAttemptRepository.saveAndFlush(
+            successAttempt(savedTransaction().getId(), 1, idempotencyKey)
+        );
+
+        assertThatThrownBy(() -> paymentAttemptRepository.saveAndFlush(
+            successAttempt(savedTransaction().getId(), 1, idempotencyKey)
+        )).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void 같은_주문과_원결제의_배분은_MySQL_UNIQUE_제약으로_거절된다() {
+        long orderId = uniquePositiveId();
+        long transactionId = savedTransaction().getId();
+        paymentAllocationRepository.saveAndFlush(allocation(orderId, transactionId, 10_000L));
+
+        assertThatThrownBy(() -> paymentAllocationRepository.saveAndFlush(
+            allocation(orderId, transactionId, 10_000L)
+        )).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void 취소가능_배분금액_생성_컬럼은_MySQL에서_계산된다() {
+        PaymentAllocation allocation = paymentAllocationRepository.saveAndFlush(
+            allocation(uniquePositiveId(), savedTransaction().getId(), 10_000L)
+        );
+
+        entityManager.refresh(allocation);
+
+        assertThat(allocation.getCancelableAmount()).isEqualTo(10_000L);
+    }
+
+    @Test
+    void 정상_거래와_결제시도와_배분을_저장하고_조회할_수_있다() {
+        PaymentTransaction transaction = savedTransaction();
+        PaymentAttempt attempt = paymentAttemptRepository.saveAndFlush(
+            successAttempt(transaction.getId(), 1, uniqueKey("attempt"))
+        );
+        PaymentAllocation allocation = paymentAllocationRepository.saveAndFlush(
+            allocation(uniquePositiveId(), transaction.getId(), 10_000L)
+        );
+
+        PaymentTransaction foundTransaction = paymentTransactionRepository
+            .findByBusinessDeduplicationKey(transaction.getBusinessDeduplicationKey())
+            .orElseThrow();
+        PaymentAttempt foundAttempt = paymentAttemptRepository
+            .findAllByPaymentTransactionIdOrderByAttemptSequenceAsc(transaction.getId())
+            .getFirst();
+        PaymentAllocation foundAllocation = paymentAllocationRepository
+            .findAllByOriginalPaymentTransactionIdOrderByIdAsc(transaction.getId())
+            .getFirst();
+
+        assertThat(foundTransaction.getId()).isEqualTo(transaction.getId());
+        assertThat(foundAttempt.getId()).isEqualTo(attempt.getId());
+        assertThat(foundAttempt.getResult()).isEqualTo(PaymentAttemptResult.SUCCESS);
+        assertThat(foundAllocation.getId()).isEqualTo(allocation.getId());
+        assertThat(foundAllocation.getAllocatedAmount()).isEqualTo(10_000L);
+    }
+
+    private PaymentTransaction savedTransaction() {
+        return paymentTransactionRepository.saveAndFlush(
+            transaction(uniquePositiveId(), uniqueKey("external"))
+        );
+    }
+
+    private PaymentTransaction transaction(long subscriptionPeriodId, String externalRequestIdempotencyKey) {
+        return PaymentTransaction.createFirstSubscriptionPayment(
+            uniquePositiveId(),
+            uniquePositiveId(),
+            subscriptionPeriodId,
+            10_000L,
+            REQUESTED_AT,
+            LocalDate.of(2026, 9, 7),
+            LocalDate.of(2026, 9, 13),
+            externalRequestIdempotencyKey,
+            REQUESTED_AT
+        );
+    }
+
+    private PaymentAttempt successAttempt(long transactionId, int sequence, String idempotencyKey) {
+        return PaymentAttempt.success(
+            transactionId,
+            uniquePositiveId(),
+            PaymentProviderCode.PORTONE,
+            sequence,
+            idempotencyKey,
+            10_000L,
+            REQUESTED_AT,
+            RESPONDED_AT,
+            uniqueKey("payment"),
+            uniqueKey("transaction"),
+            "PAID"
+        );
+    }
+
+    private PaymentAllocation allocation(long orderId, long transactionId, long amount) {
+        return PaymentAllocation.create(
+            orderId,
+            transactionId,
+            PaymentAllocationType.FIRST_SUBSCRIPTION_PAYMENT,
+            amount
+        );
+    }
+
+    private String uniqueKey(String prefix) {
+        return prefix + "-" + uniquePositiveId();
+    }
+
+    private long uniquePositiveId() {
+        return ThreadLocalRandom.current().nextLong(1_000_000_000L, Long.MAX_VALUE);
+    }
+}
