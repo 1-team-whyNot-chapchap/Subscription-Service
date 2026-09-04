@@ -7,7 +7,8 @@
 ```powershell
 postman collection run postman/chapchap-subscription.postman_collection.json `
   -e postman/environments/local.postman_environment.example.json `
-  --bail failure
+  --bail failure `
+  --no-report-events
 ```
 
 ## 자동결제수단 선택 사전조건
@@ -29,13 +30,28 @@ Collection은 HTTP 응답과 결제수단 목록 API로 현재 수단 변경·�
 
 ## SUB-FN-004 첫 구독 Draft Collection
 
-`postman/drafts/sub-fn-004-first-subscription.postman_collection.json`은 첫 구독 API 통합 전에 준비한 초안이다. 아직 위의 기본 CLI 명령에는 포함하지 않으며, 첫 구독 Controller와 통합 흐름이 구현된 뒤 다음과 같이 별도로 실행한다.
+`postman/drafts/sub-fn-004-first-subscription.postman_collection.json`은 첫 구독 API 통합 전에 준비한 초안이다. 아직 위의 기본 CLI 명령에는 포함하지 않는다. 각 요청은 서로 다른 DB·Provider 상태를 요구하므로 Collection 전체를 한 번에 실행하지 않고, 필요한 Fixture를 구성한 뒤 `-i` 옵션으로 한 시나리오씩 실행한다.
+
+```powershell
+$scenarioName = "03 미인증"
+postman collection run postman/drafts/sub-fn-004-first-subscription.postman_collection.json `
+  -e postman/environments/local.postman_environment.json `
+  -i $scenarioName `
+  --bail failure `
+  --no-report-events
+```
+
+Git에 포함된 Example Environment로 외부 결제를 호출하지 않는 미인증 시나리오만 확인하려면 다음과 같이 실행한다.
 
 ```powershell
 postman collection run postman/drafts/sub-fn-004-first-subscription.postman_collection.json `
-  -e postman/environments/local.postman_environment.json `
-  --bail failure
+  -e postman/environments/local.postman_environment.example.json `
+  -i "03 미인증" `
+  --bail failure `
+  --no-report-events
 ```
+
+`03 미인증`, `04 필수 약관 미동의`, `12 요청 형식 오류`는 빈 `testPlanId`·`testAddressId`와 무관하게 해당 실패 조건만 확인할 수 있도록 문법상 유효한 고정 ID 또는 의도적으로 잘못된 Request를 사용한다. `04`는 약관 동의 이력이 없는 로컬 전용 사용자 ID로 실행해야 한다.
 
 실행 전 Git에서 제외된 개인 Local Environment를 만들고 `testPlanId`, `testAddressId`를 실제 로컬 Fixture의 공개 ID로 채운다. 테스트 사용자에게는 현재 필수 약관 동의, 활성 배송지, 현재 `AVAILABLE` 자동결제수단이 필요하다. 시나리오마다 요구하는 구독·약관·결제수단·Provider 상태가 다르므로 Description의 사전조건에 맞게 DB Fixture 또는 제어 가능한 Mock을 재구성한 뒤 해당 요청만 실행한다.
 
