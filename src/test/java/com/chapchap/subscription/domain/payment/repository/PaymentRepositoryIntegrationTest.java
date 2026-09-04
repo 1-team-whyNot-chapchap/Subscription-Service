@@ -4,6 +4,8 @@ import com.chapchap.subscription.domain.payment.entity.PaymentAllocation;
 import com.chapchap.subscription.domain.payment.entity.PaymentAllocationType;
 import com.chapchap.subscription.domain.payment.entity.PaymentAttempt;
 import com.chapchap.subscription.domain.payment.entity.PaymentAttemptResult;
+import com.chapchap.subscription.domain.payment.entity.PaymentMethod;
+import com.chapchap.subscription.domain.payment.entity.PaymentMethodStatus;
 import com.chapchap.subscription.domain.payment.entity.PaymentProviderCode;
 import com.chapchap.subscription.domain.payment.entity.PaymentTransaction;
 import jakarta.persistence.EntityManager;
@@ -36,6 +38,9 @@ class PaymentRepositoryIntegrationTest {
 
     @Autowired
     private PaymentAllocationRepository paymentAllocationRepository;
+
+    @Autowired
+    private PaymentMethodRepository paymentMethodRepository;
 
     @Autowired
     private EntityManager entityManager;
@@ -131,6 +136,35 @@ class PaymentRepositoryIntegrationTest {
         assertThat(foundAttempt.getResult()).isEqualTo(PaymentAttemptResult.SUCCESS);
         assertThat(foundAllocation.getId()).isEqualTo(allocation.getId());
         assertThat(foundAllocation.getAllocatedAmount()).isEqualTo(10_000L);
+    }
+
+    @Test
+    void 현재_자동결제수단을_DELETED_상태로_변경해_이력을_보존한다() {
+        long userId = uniquePositiveId();
+        PaymentMethod paymentMethod = paymentMethodRepository.saveAndFlush(
+            PaymentMethod.createAsCurrent(
+                userId,
+                PaymentProviderCode.PORTONE,
+                uniqueKey("protected-method"),
+                "테스트카드",
+                "****-****-****-1234",
+                REQUESTED_AT
+            )
+        );
+        String protectedExternalMethodRef = paymentMethod.getProtectedExternalMethodRef();
+        LocalDateTime lastSelectedAt = paymentMethod.getLastSelectedAt();
+
+        paymentMethod.markAsDeleted(RESPONDED_AT);
+        paymentMethodRepository.flush();
+        entityManager.refresh(paymentMethod);
+
+        assertThat(paymentMethod.getStatus()).isEqualTo(PaymentMethodStatus.DELETED);
+        assertThat(paymentMethod.isCurrent()).isFalse();
+        assertThat(paymentMethod.getCurrentUserId()).isNull();
+        assertThat(paymentMethod.getRetirementAt()).isEqualTo(RESPONDED_AT);
+        assertThat(paymentMethod.getDeletedAt()).isNull();
+        assertThat(paymentMethod.getLastSelectedAt()).isEqualTo(lastSelectedAt);
+        assertThat(paymentMethod.getProtectedExternalMethodRef()).isEqualTo(protectedExternalMethodRef);
     }
 
     private PaymentTransaction savedTransaction() {
