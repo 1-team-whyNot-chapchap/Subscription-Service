@@ -108,6 +108,15 @@ public class GlobalExceptionHandler {
         return generateErrorResponse(ErrorCode.INVALID_REQUEST);
     }
 
+    /** 도메인 입력값 검증에서 발생한 인자 오류를 공통 요청 검증 오류로 변환한다. */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<GlobalResponse<Void>> handle(
+            IllegalArgumentException e
+    ) {
+        log.debug("{}: {}", ErrorCode.INVALID_REQUEST.name(), e.getMessage());
+        return generateErrorResponse(ErrorCode.INVALID_REQUEST);
+    }
+
     @ExceptionHandler(DataAccessException.class)
     public ResponseEntity<GlobalResponse<Void>> handle(
             DataAccessException e
