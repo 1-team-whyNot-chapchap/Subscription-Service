@@ -29,6 +29,11 @@ public enum ErrorCode {
     // === Terms ===
     , CURRENT_REQUIRED_TERMS_NOT_FOUND("TERMS_001", HttpStatus.INTERNAL_SERVER_ERROR, "현재 적용 중인 필수 약관을 확인할 수 없습니다.")
     , TERMS_VERSION_MISMATCH("TERMS_002", HttpStatus.CONFLICT, "확인한 약관 버전이 현재 적용 약관 버전과 일치하지 않습니다.")
+    , TERMS_AGREEMENT_REQUIRED("TERMS_003", HttpStatus.CONFLICT, "현재 적용 중인 필수 약관에 동의해 주세요.")
+
+    // === Subscription ===
+    , PLAN_NOT_FOUND("SUBSCRIPTION_001", HttpStatus.NOT_FOUND, "플랜을 찾을 수 없습니다.")
+    , SUBSCRIPTION_ALREADY_ACTIVE("SUBSCRIPTION_002", HttpStatus.CONFLICT, "이미 진행 중인 구독이 있습니다.")
 
     // === Common ===
     , INVALID_REQUEST("COMMON_001", HttpStatus.BAD_REQUEST, "요청이 유효하지 않습니다.")

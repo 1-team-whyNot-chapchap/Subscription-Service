@@ -14,12 +14,10 @@ import java.util.List;
  * @param subscriptionSettingId 주문 생성에 적용한 구독 설정 식별자
  * @param termsAgreementId 주문 생성 전에 확인한 비대면 보관 약관 동의 식별자
  * @param plan 주문 생성 당시 플랜과 가격 스냅샷
- * @param address 주문 생성 당시 배송지 스냅샷
- * @param deliveryTimeSlot 주문 생성 당시 배송 시간대
  * @param applyFirstDiscount 이번 첫 결제 주문에 첫 구독 할인을 적용할지 여부
  * @param periodStartDate 첫 이용 기간 시작일
  * @param periodEndDate 첫 이용 기간 종료일
- * @param deliveries 실제 배송일별 메뉴와 수량
+ * @param deliveries 실제 배송일별 메뉴·수량·배송 조건
  */
 public record FirstOrderPreparationCommand(
     Long userId,
@@ -28,8 +26,6 @@ public record FirstOrderPreparationCommand(
     Long subscriptionSettingId,
     Long termsAgreementId,
     PlanSnapshot plan,
-    AddressSnapshot address,
-    OrderDeliveryTimeSlot deliveryTimeSlot,
     boolean applyFirstDiscount,
     LocalDate periodStartDate,
     LocalDate periodEndDate,
@@ -58,12 +54,6 @@ public record FirstOrderPreparationCommand(
         if (plan == null) {
             throw new IllegalArgumentException("plan must not be null");
         }
-        if (address == null) {
-            throw new IllegalArgumentException("address must not be null");
-        }
-        if (deliveryTimeSlot == null) {
-            throw new IllegalArgumentException("deliveryTimeSlot must not be null");
-        }
         if (periodStartDate == null || periodEndDate == null) {
             throw new IllegalArgumentException("period dates must not be null");
         }
@@ -76,7 +66,49 @@ public record FirstOrderPreparationCommand(
         if (deliveries == null || deliveries.isEmpty()) {
             throw new IllegalArgumentException("deliveries must not be empty");
         }
+        if (deliveries.stream().anyMatch(delivery -> delivery.address() == null)) {
+            throw new IllegalArgumentException("each delivery address must not be null");
+        }
+        if (deliveries.stream().anyMatch(delivery -> delivery.deliveryTimeSlot() == null)) {
+            throw new IllegalArgumentException("each delivery time slot must not be null");
+        }
         deliveries = List.copyOf(deliveries);
+    }
+
+    /** 기존 단일 배송 조건 호출자를 날짜별 스냅샷 계약으로 변환하는 임시 호환 생성자다. */
+    public FirstOrderPreparationCommand(
+        Long userId,
+        Long subscriptionId,
+        Long subscriptionPeriodId,
+        Long subscriptionSettingId,
+        Long termsAgreementId,
+        PlanSnapshot plan,
+        AddressSnapshot address,
+        OrderDeliveryTimeSlot deliveryTimeSlot,
+        boolean applyFirstDiscount,
+        LocalDate periodStartDate,
+        LocalDate periodEndDate,
+        List<Delivery> deliveries
+    ) {
+        this(
+            userId, subscriptionId, subscriptionPeriodId, subscriptionSettingId, termsAgreementId,
+            plan, applyFirstDiscount, periodStartDate, periodEndDate,
+            deliveries == null ? null : deliveries.stream()
+                .map(delivery -> delivery.withDeliveryCondition(address, deliveryTimeSlot))
+                .toList()
+        );
+    }
+
+    /** @deprecated 배송 조건은 날짜마다 다를 수 있으므로 {@link Delivery#address()}를 사용한다. */
+    @Deprecated
+    public AddressSnapshot address() {
+        return deliveries.get(0).address();
+    }
+
+    /** @deprecated 배송 조건은 날짜마다 다를 수 있으므로 {@link Delivery#deliveryTimeSlot()}을 사용한다. */
+    @Deprecated
+    public OrderDeliveryTimeSlot deliveryTimeSlot() {
+        return deliveries.get(0).deliveryTimeSlot();
     }
 
     /**
@@ -91,7 +123,6 @@ public record FirstOrderPreparationCommand(
             + ", subscriptionSettingId=" + subscriptionSettingId
             + ", termsAgreementId=" + termsAgreementId
             + ", planId=" + plan.planId()
-            + ", addressId=" + address.addressId()
             + ", applyFirstDiscount=" + applyFirstDiscount
             + ", periodStartDate=" + periodStartDate
             + ", periodEndDate=" + periodEndDate
@@ -148,6 +179,8 @@ public record FirstOrderPreparationCommand(
      * @param menuSequence 플랜 내 메뉴 순번
      * @param menuName 주문에 보존할 메뉴명 스냅샷
      * @param mealQuantity 해당 배송일의 도시락 수량
+     * @param address 주문 생성 당시 해당 배송일의 배송지 스냅샷
+     * @param deliveryTimeSlot 해당 배송일의 배송 시간대
      */
     public record Delivery(
         LocalDate deliveryDate,
@@ -155,7 +188,9 @@ public record FirstOrderPreparationCommand(
         Long menuPlanId,
         Integer menuSequence,
         String menuName,
-        Integer mealQuantity
+        Integer mealQuantity,
+        AddressSnapshot address,
+        OrderDeliveryTimeSlot deliveryTimeSlot
     ) {
         /** 배송일·메뉴·수량 값의 기본 형식을 검증한다. */
         public Delivery {
@@ -173,6 +208,28 @@ public record FirstOrderPreparationCommand(
                 || mealQuantity > MAX_MEAL_QUANTITY) {
                 throw new IllegalArgumentException("mealQuantity must be between 1 and 6");
             }
+        }
+
+        /** 기존 테스트·호출자의 메뉴 입력에 날짜별 배송 조건을 채운다. */
+        public Delivery(
+            LocalDate deliveryDate,
+            Long menuId,
+            Long menuPlanId,
+            Integer menuSequence,
+            String menuName,
+            Integer mealQuantity
+        ) {
+            this(deliveryDate, menuId, menuPlanId, menuSequence, menuName, mealQuantity, null, null);
+        }
+
+        private Delivery withDeliveryCondition(
+            AddressSnapshot address,
+            OrderDeliveryTimeSlot deliveryTimeSlot
+        ) {
+            return new Delivery(
+                deliveryDate, menuId, menuPlanId, menuSequence, menuName, mealQuantity,
+                address, deliveryTimeSlot
+            );
         }
     }
 

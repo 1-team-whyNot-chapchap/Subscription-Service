@@ -106,7 +106,7 @@ public class FirstOrderService {
         FirstOrderPreparationCommand.Delivery delivery
     ) {
         FirstOrderPreparationCommand.PlanSnapshot plan = command.plan();
-        FirstOrderPreparationCommand.AddressSnapshot address = command.address();
+        FirstOrderPreparationCommand.AddressSnapshot address = delivery.address();
         long mealAmount = Math.multiplyExact(plan.mealUnitPrice(), delivery.mealQuantity().longValue());
         long discountAmount = command.applyFirstDiscount()
             ? calculateFirstDiscount(plan.mealUnitPrice())
@@ -142,7 +142,7 @@ public class FirstOrderService {
             .deliveryMethodCode(address.deliveryMethodCode())
             .otherDeliveryRequest(address.otherDeliveryRequest())
             .entrancePassword(address.entrancePassword())
-            .deliveryTimeSlot(command.deliveryTimeSlot())
+            .deliveryTimeSlot(delivery.deliveryTimeSlot())
             .build();
     }
 
