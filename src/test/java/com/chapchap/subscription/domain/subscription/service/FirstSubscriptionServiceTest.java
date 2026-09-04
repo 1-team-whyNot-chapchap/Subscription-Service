@@ -18,10 +18,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -105,6 +107,31 @@ class FirstSubscriptionServiceTest {
         verify(completionService).complete(prepared, execution);
     }
 
+    @Test
+    void 동시_prepare_UNIQUE_충돌은_기존_PROCESSING을_반환하고_PG를_호출하지_않는다() {
+        DataIntegrityViolationException conflict = new DataIntegrityViolationException("concurrent prepare");
+        PreparedFirstSubscription processing = processing();
+        when(preparationService.prepare(10L, request())).thenThrow(conflict);
+        when(preparationService.recoverConcurrentProcessing(10L)).thenReturn(Optional.of(processing));
+
+        FirstSubscriptionResponse response = service.subscribe(10L, request());
+
+        assertThat(response.subscriptionStatus()).isEqualTo(SubscriptionStatus.AWAITING_CONFIRMATION);
+        verify(paymentExecutionService, never()).execute(any());
+        verify(completionService, never()).complete(any(), any());
+    }
+
+    @Test
+    void 동시_prepare_복구_조건이_맞지_않으면_원래_DB_오류를_숨기지_않는다() {
+        DataIntegrityViolationException conflict = new DataIntegrityViolationException("unrelated constraint");
+        when(preparationService.prepare(10L, request())).thenThrow(conflict);
+        when(preparationService.recoverConcurrentProcessing(10L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.subscribe(10L, request())).isSameAs(conflict);
+        verify(paymentExecutionService, never()).execute(any());
+        verify(completionService, never()).complete(any(), any());
+    }
+
     private FirstSubscriptionRequest request() {
         return new FirstSubscriptionRequest(
             "PLN-11111111-1111-4111-8111-111111111111",
@@ -133,6 +160,17 @@ class FirstSubscriptionServiceTest {
                 true
             ),
             true
+        );
+    }
+
+    private PreparedFirstSubscription processing() {
+        return PreparedFirstSubscription.processing(
+            1L,
+            "SUB-11111111-1111-4111-8111-111111111111",
+            2L,
+            LocalDate.of(2026, 9, 7),
+            LocalDate.of(2026, 10, 4),
+            4L
         );
     }
 

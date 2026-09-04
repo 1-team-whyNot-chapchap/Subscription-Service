@@ -8,7 +8,11 @@ import com.chapchap.subscription.domain.subscription.request.FirstSubscriptionRe
 import com.chapchap.subscription.domain.subscription.response.FirstSubscriptionResponse;
 import com.chapchap.subscription.global.exception.payment.PaymentDeclinedException;
 import com.chapchap.subscription.global.exception.payment.PaymentProviderAuthenticationFailedException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
+
+import java.util.Optional;
 
 /** prepare, 트랜잭션 밖 PG 호출, 결과 확정을 순서대로 연결하는 첫 구독 오케스트레이터다. */
 @Service
@@ -32,7 +36,17 @@ public class FirstSubscriptionService {
      * 첫 구독을 신청하고 결제를 실행한다. 기존 PROCESSING 요청에는 외부 결제를 다시 요청하지 않는다.
      */
     public FirstSubscriptionResponse subscribe(Long userId, FirstSubscriptionRequest request) {
-        PreparedFirstSubscription prepared = preparationService.prepare(userId, request);
+        PreparedFirstSubscription prepared;
+        try {
+            prepared = preparationService.prepare(userId, request);
+        } catch (DataIntegrityViolationException | OptimisticLockingFailureException conflict) {
+            Optional<PreparedFirstSubscription> concurrent =
+                preparationService.recoverConcurrentProcessing(userId);
+            if (concurrent.isPresent()) {
+                return toResponse(concurrent.get());
+            }
+            throw conflict;
+        }
         if (!prepared.paymentRequired()) {
             return toResponse(prepared);
         }
