@@ -100,17 +100,19 @@ class PortOneAutomaticPaymentClientTest {
         server.verify();
     }
 
-    @Test
-    void 인증_실패는_저장_가능한_서버_연동_실패_결과로_변환한다() {
+    @ParameterizedTest
+    @ValueSource(ints = {401, 403})
+    void 인증과_권한_실패는_저장_가능한_서버_연동_실패_결과로_변환한다(int statusCode) {
+        HttpStatus status = HttpStatus.valueOf(statusCode);
         server.expect(requestTo(BASE_URL + "/payments/" + PAYMENT_ID + "/billing-key"))
-            .andRespond(withStatus(HttpStatus.UNAUTHORIZED)
+            .andRespond(withStatus(status)
                 .contentType(MediaType.APPLICATION_JSON)
-                .body("{\"type\":\"UNAUTHORIZED\",\"message\":\"secret response\"}"));
+                .body("{\"type\":\"" + status.name() + "\",\"message\":\"secret response\"}"));
 
         AutomaticPaymentResult result = client.pay(request());
 
         assertThat(result.status()).isEqualTo(AutomaticPaymentStatus.PROVIDER_CONFIGURATION_FAILED);
-        assertThat(result.externalResultCode()).isEqualTo("HTTP_401");
+        assertThat(result.externalResultCode()).isEqualTo("HTTP_" + statusCode);
         assertThat(result.failureReason()).doesNotContain("secret response").doesNotContain(BILLING_KEY);
         server.verify();
     }
@@ -205,6 +207,16 @@ class PortOneAutomaticPaymentClientTest {
             .andRespond(withStatus(HttpStatus.BAD_REQUEST)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body("not-json"));
+
+        assertThatThrownBy(() -> client.pay(request()))
+            .isInstanceOf(PaymentProviderUnavailableException.class);
+        server.verify();
+    }
+
+    @Test
+    void 성공_HTTP의_JSON을_파싱할_수_없으면_결과를_추측하지_않는다() {
+        server.expect(requestTo(BASE_URL + "/payments/" + PAYMENT_ID + "/billing-key"))
+            .andRespond(withSuccess("not-json", MediaType.APPLICATION_JSON));
 
         assertThatThrownBy(() -> client.pay(request()))
             .isInstanceOf(PaymentProviderUnavailableException.class);
