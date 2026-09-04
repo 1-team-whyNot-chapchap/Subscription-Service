@@ -83,6 +83,54 @@ class FirstOrderServiceTest {
     }
 
     @Test
+    void 배송일마다_선택한_배송지와_시간대를_각_주문에_따로_보존한다() {
+        FirstOrderPreparationCommand.AddressSnapshot mondayAddress = address(
+            80L, "월요일 수령인", "대구광역시 중구 월요일로 1"
+        );
+        FirstOrderPreparationCommand.AddressSnapshot wednesdayAddress = address(
+            81L, "수요일 수령인", "대구광역시 중구 수요일로 1"
+        );
+        FirstOrderPreparationCommand command = new FirstOrderPreparationCommand(
+            1L,
+            20L,
+            30L,
+            40L,
+            50L,
+            new FirstOrderPreparationCommand.PlanSnapshot(60L, "가정식", 8_900L),
+            false,
+            LocalDate.of(2026, 9, 7),
+            LocalDate.of(2026, 10, 4),
+            List.of(
+                new FirstOrderPreparationCommand.Delivery(
+                    LocalDate.of(2026, 9, 7), 77L, 60L, 7, "월요일 메뉴", 1,
+                    mondayAddress, OrderDeliveryTimeSlot.TIME_1100_1300
+                ),
+                new FirstOrderPreparationCommand.Delivery(
+                    LocalDate.of(2026, 9, 9), 79L, 60L, 9, "수요일 메뉴", 2,
+                    wednesdayAddress, OrderDeliveryTimeSlot.TIME_1700_1900
+                )
+            )
+        );
+        when(orderRepository.existsBySubscriptionPeriodId(30L)).thenReturn(false);
+        assignIdsWhenSaved();
+
+        service.prepare(command);
+
+        ArgumentCaptor<List<Order>> captor = orderListCaptor();
+        verify(orderRepository).saveAll(captor.capture());
+        assertThat(captor.getValue())
+            .extracting(Order::getAddressId, Order::getRecipientName, Order::getDeliveryTimeSlot)
+            .containsExactly(
+                org.assertj.core.groups.Tuple.tuple(
+                    80L, "월요일 수령인", OrderDeliveryTimeSlot.TIME_1100_1300
+                ),
+                org.assertj.core.groups.Tuple.tuple(
+                    81L, "수요일 수령인", OrderDeliveryTimeSlot.TIME_1700_1900
+                )
+            );
+    }
+
+    @Test
     void 같은_배송일이_두_번_들어오면_주문을_저장하지_않는다() {
         LocalDate date = LocalDate.of(2026, 9, 7);
         FirstOrderPreparationCommand command = command(
@@ -170,7 +218,9 @@ class FirstOrderServiceTest {
             99L,
             7,
             "닭가슴살 도시락",
-            1
+            1,
+            address(80L, "홍길동", "대구광역시 중구 중앙대로 1"),
+            OrderDeliveryTimeSlot.TIME_1100_1300
         );
         when(orderRepository.existsBySubscriptionPeriodId(30L)).thenReturn(false);
 
@@ -290,6 +340,19 @@ class FirstOrderServiceTest {
             false,
             deliveries(delivery(LocalDate.of(2026, 9, 7), 7, 1))
         );
+        FirstOrderPreparationCommand.Delivery sourceDelivery = source.deliveries().get(0);
+        FirstOrderPreparationCommand.AddressSnapshot sensitiveAddress =
+            new FirstOrderPreparationCommand.AddressSnapshot(
+                sourceDelivery.address().addressId(),
+                "민감한 수령인",
+                "010-9999-8888",
+                sourceDelivery.address().postalCode(),
+                "민감한 기본 주소",
+                "민감한 상세 주소",
+                "OTHER",
+                "민감한 배송 요청",
+                "민감한 공동현관 비밀번호"
+            );
         FirstOrderPreparationCommand command = new FirstOrderPreparationCommand(
             source.userId(),
             source.subscriptionId(),
@@ -297,22 +360,19 @@ class FirstOrderServiceTest {
             source.subscriptionSettingId(),
             source.termsAgreementId(),
             source.plan(),
-            new FirstOrderPreparationCommand.AddressSnapshot(
-                source.address().addressId(),
-                "민감한 수령인",
-                "010-9999-8888",
-                source.address().postalCode(),
-                "민감한 기본 주소",
-                "민감한 상세 주소",
-                "OTHER",
-                "민감한 배송 요청",
-                "민감한 공동현관 비밀번호"
-            ),
-            source.deliveryTimeSlot(),
             source.applyFirstDiscount(),
             source.periodStartDate(),
             source.periodEndDate(),
-            source.deliveries()
+            List.of(new FirstOrderPreparationCommand.Delivery(
+                sourceDelivery.deliveryDate(),
+                sourceDelivery.menuId(),
+                sourceDelivery.menuPlanId(),
+                sourceDelivery.menuSequence(),
+                sourceDelivery.menuName(),
+                sourceDelivery.mealQuantity(),
+                sensitiveAddress,
+                sourceDelivery.deliveryTimeSlot()
+            ))
         );
 
         assertThat(command.toString())
@@ -325,7 +385,7 @@ class FirstOrderServiceTest {
                 "민감한 배송 요청",
                 "민감한 공동현관 비밀번호"
             );
-        assertThat(command.address().toString())
+        assertThat(command.deliveries().get(0).address().toString())
             .contains("addressId=80", "deliveryMethodCode=OTHER")
             .doesNotContain(
                 "민감한 수령인",
@@ -408,7 +468,7 @@ class FirstOrderServiceTest {
         );
         FirstOrderPreparationCommand.Delivery delivery = command.deliveries().get(0);
         FirstOrderPreparationCommand.PlanSnapshot plan = command.plan();
-        FirstOrderPreparationCommand.AddressSnapshot address = command.address();
+        FirstOrderPreparationCommand.AddressSnapshot address = delivery.address();
         return Order.awaitingConfirmationBuilder()
             .userId(command.userId())
             .subscriptionId(command.subscriptionId())
@@ -435,7 +495,7 @@ class FirstOrderServiceTest {
             .deliveryMethodCode(address.deliveryMethodCode())
             .otherDeliveryRequest(address.otherDeliveryRequest())
             .entrancePassword(address.entrancePassword())
-            .deliveryTimeSlot(command.deliveryTimeSlot())
+            .deliveryTimeSlot(delivery.deliveryTimeSlot())
             .build();
     }
 
@@ -450,18 +510,6 @@ class FirstOrderServiceTest {
             40L,
             50L,
             new FirstOrderPreparationCommand.PlanSnapshot(60L, "가정식", 8_900L),
-            new FirstOrderPreparationCommand.AddressSnapshot(
-                80L,
-                "홍길동",
-                "010-1234-5678",
-                "12345",
-                "대구광역시 중구 중앙대로 1",
-                null,
-                "DIRECT",
-                null,
-                null
-            ),
-            OrderDeliveryTimeSlot.TIME_1100_1300,
             applyFirstDiscount,
             LocalDate.of(2026, 9, 7),
             LocalDate.of(2026, 10, 4),
@@ -475,6 +523,33 @@ class FirstOrderServiceTest {
         String deliveryMethodCode,
         String otherDeliveryRequest
     ) {
+        List<FirstOrderPreparationCommand.Delivery> updatedDeliveries = source.deliveries().stream()
+            .map(delivery -> {
+                FirstOrderPreparationCommand.AddressSnapshot sourceAddress = delivery.address();
+                FirstOrderPreparationCommand.AddressSnapshot updatedAddress =
+                    new FirstOrderPreparationCommand.AddressSnapshot(
+                        sourceAddress.addressId(),
+                        sourceAddress.recipientName(),
+                        sourceAddress.recipientPhone(),
+                        sourceAddress.postalCode(),
+                        sourceAddress.addressLine1(),
+                        sourceAddress.addressLine2(),
+                        deliveryMethodCode,
+                        otherDeliveryRequest,
+                        sourceAddress.entrancePassword()
+                    );
+                return new FirstOrderPreparationCommand.Delivery(
+                    delivery.deliveryDate(),
+                    delivery.menuId(),
+                    delivery.menuPlanId(),
+                    delivery.menuSequence(),
+                    delivery.menuName(),
+                    delivery.mealQuantity(),
+                    updatedAddress,
+                    delivery.deliveryTimeSlot()
+                );
+            })
+            .toList();
         return new FirstOrderPreparationCommand(
             source.userId(),
             source.subscriptionId(),
@@ -486,22 +561,10 @@ class FirstOrderServiceTest {
                 source.plan().planName(),
                 mealUnitPrice
             ),
-            new FirstOrderPreparationCommand.AddressSnapshot(
-                source.address().addressId(),
-                source.address().recipientName(),
-                source.address().recipientPhone(),
-                source.address().postalCode(),
-                source.address().addressLine1(),
-                source.address().addressLine2(),
-                deliveryMethodCode,
-                otherDeliveryRequest,
-                source.address().entrancePassword()
-            ),
-            source.deliveryTimeSlot(),
             source.applyFirstDiscount(),
             source.periodStartDate(),
             source.periodEndDate(),
-            source.deliveries()
+            updatedDeliveries
         );
     }
 
@@ -516,7 +579,27 @@ class FirstOrderServiceTest {
             60L,
             menuSequence,
             "닭가슴살 도시락",
-            quantity
+            quantity,
+            address(80L, "홍길동", "대구광역시 중구 중앙대로 1"),
+            OrderDeliveryTimeSlot.TIME_1100_1300
+        );
+    }
+
+    private FirstOrderPreparationCommand.AddressSnapshot address(
+        Long addressId,
+        String recipientName,
+        String addressLine1
+    ) {
+        return new FirstOrderPreparationCommand.AddressSnapshot(
+            addressId,
+            recipientName,
+            "010-1234-5678",
+            "12345",
+            addressLine1,
+            null,
+            "DIRECT",
+            null,
+            null
         );
     }
 

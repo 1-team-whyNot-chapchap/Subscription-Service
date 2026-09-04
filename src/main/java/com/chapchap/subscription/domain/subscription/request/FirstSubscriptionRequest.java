@@ -27,7 +27,7 @@ public record FirstSubscriptionRequest(
         }
     }
 
-    /** 한 배송 요일에 적용할 수량·배송지·배송 시간대를 표현한다. */
+    /** 한 배송 요일에 적용할 수량·배송지·배송 시간대를 담는다. */
     public record DeliveryCondition(
         @NotNull DeliveryWeekday weekday,
         @NotNull @Min(1) @Max(6) Integer mealQuantity,

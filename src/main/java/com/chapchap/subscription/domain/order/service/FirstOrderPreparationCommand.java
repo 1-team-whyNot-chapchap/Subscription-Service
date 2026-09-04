@@ -31,14 +31,6 @@ public record FirstOrderPreparationCommand(
     LocalDate periodEndDate,
     List<Delivery> deliveries
 ) {
-    // ========= [TODO: SUB-FN-004 / Subscription 통합 단계] =========
-    // 이유: 현재 applyFirstDiscount 값은 호출자가 계산해 전달하는 임시 경계다.
-    // 완료 조건: Subscription의 영속된 첫 할인 사용 이력으로 적용 여부를 판정한다.
-    // 후속 작업: 고객 요청값이 아니라 구독 조회 결과로 이 Command를 구성하고,
-    //            결제 성공 트랜잭션에서만 할인 사용 이력을 TRUE로 변경한다.
-    // 검토 사항: 첫 결제 실패·시작 취소·재신청에서도 사용 이력이 잘못 초기화되지 않아야 한다.
-    // ========= [/TODO] =============================================
-
     private static final int FIRST_PERIOD_LENGTH_DAYS = 28;
     private static final int MAX_MENU_SEQUENCE = 31;
     private static final int MIN_MEAL_QUANTITY = 1;
@@ -73,42 +65,6 @@ public record FirstOrderPreparationCommand(
             throw new IllegalArgumentException("each delivery time slot must not be null");
         }
         deliveries = List.copyOf(deliveries);
-    }
-
-    /** 기존 단일 배송 조건 호출자를 날짜별 스냅샷 계약으로 변환하는 임시 호환 생성자다. */
-    public FirstOrderPreparationCommand(
-        Long userId,
-        Long subscriptionId,
-        Long subscriptionPeriodId,
-        Long subscriptionSettingId,
-        Long termsAgreementId,
-        PlanSnapshot plan,
-        AddressSnapshot address,
-        OrderDeliveryTimeSlot deliveryTimeSlot,
-        boolean applyFirstDiscount,
-        LocalDate periodStartDate,
-        LocalDate periodEndDate,
-        List<Delivery> deliveries
-    ) {
-        this(
-            userId, subscriptionId, subscriptionPeriodId, subscriptionSettingId, termsAgreementId,
-            plan, applyFirstDiscount, periodStartDate, periodEndDate,
-            deliveries == null ? null : deliveries.stream()
-                .map(delivery -> delivery.withDeliveryCondition(address, deliveryTimeSlot))
-                .toList()
-        );
-    }
-
-    /** @deprecated 배송 조건은 날짜마다 다를 수 있으므로 {@link Delivery#address()}를 사용한다. */
-    @Deprecated
-    public AddressSnapshot address() {
-        return deliveries.get(0).address();
-    }
-
-    /** @deprecated 배송 조건은 날짜마다 다를 수 있으므로 {@link Delivery#deliveryTimeSlot()}을 사용한다. */
-    @Deprecated
-    public OrderDeliveryTimeSlot deliveryTimeSlot() {
-        return deliveries.get(0).deliveryTimeSlot();
     }
 
     /**
@@ -210,27 +166,6 @@ public record FirstOrderPreparationCommand(
             }
         }
 
-        /** 기존 테스트·호출자의 메뉴 입력에 날짜별 배송 조건을 채운다. */
-        public Delivery(
-            LocalDate deliveryDate,
-            Long menuId,
-            Long menuPlanId,
-            Integer menuSequence,
-            String menuName,
-            Integer mealQuantity
-        ) {
-            this(deliveryDate, menuId, menuPlanId, menuSequence, menuName, mealQuantity, null, null);
-        }
-
-        private Delivery withDeliveryCondition(
-            AddressSnapshot address,
-            OrderDeliveryTimeSlot deliveryTimeSlot
-        ) {
-            return new Delivery(
-                deliveryDate, menuId, menuPlanId, menuSequence, menuName, mealQuantity,
-                address, deliveryTimeSlot
-            );
-        }
     }
 
     private static void requirePositive(Long value, String fieldName) {

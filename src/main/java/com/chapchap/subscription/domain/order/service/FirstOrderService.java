@@ -26,13 +26,6 @@ public class FirstOrderService {
     private final OrderRepository orderRepository;
     private final HolidayRepository holidayRepository;
 
-    // ========= [TODO: SUB-FN-004 / Subscription 통합 단계] =========
-    // 이유: 현재 Order와 Payment의 준비·결과 확정 Service가 각각 독립되어 있다.
-    // 완료 조건: 첫 구독 통합 오케스트레이터가 모든 사전 데이터와 결과를 함께 처리한다.
-    // 후속 작업: 주문·결제 거래 준비와 결제·구독·기간·설정·주문 결과 확정을
-    //            각각 하나의 상위 @Transactional 경계에서 호출한다.
-    // ========= [/TODO] =============================================
-
     /**
      * 주문 저장소를 사용해 첫 주문 Service를 구성한다.
      *
