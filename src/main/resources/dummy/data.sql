@@ -65,6 +65,51 @@ VALUES
     ON DUPLICATE KEY UPDATE
                          public_id = public_id;
 
+-- 주문은 배송일의 달력 일자와 같은 메뉴 순번을 사용하므로,
+-- 로컬 환경에서도 각 플랜에 1~31 순번 메뉴가 모두 있어야 한다.
+INSERT INTO menus (
+    public_id,
+    plan_id,
+    menu_sequence,
+    name,
+    description,
+    allergen_info,
+    nutrition_info,
+    ingredient_info
+)
+WITH RECURSIVE menu_sequences (menu_sequence) AS (
+    SELECT 1
+    UNION ALL
+    SELECT menu_sequence + 1
+    FROM menu_sequences
+    WHERE menu_sequence < 31
+)
+SELECT
+    CONCAT(
+        'MNU-',
+        LOWER(HEX(RANDOM_BYTES(4))), '-',
+        LOWER(HEX(RANDOM_BYTES(2))), '-',
+        '4', RIGHT(LOWER(HEX(RANDOM_BYTES(2))), 3), '-',
+        '8', RIGHT(LOWER(HEX(RANDOM_BYTES(2))), 3), '-',
+        LOWER(HEX(RANDOM_BYTES(6)))
+    ),
+    plans.id,
+    menu_sequences.menu_sequence,
+    CONCAT(plans.name, ' ', LPAD(menu_sequences.menu_sequence, 2, '0'), '일 메뉴'),
+    CONCAT(plans.name, ' 플랜의 ', menu_sequences.menu_sequence, '일 배송용 로컬 테스트 메뉴'),
+    '로컬 테스트 데이터 — 실제 알레르기 정보 확인 필요',
+    '로컬 테스트 데이터 — 실제 영양성분 정보 확인 필요',
+    '로컬 테스트 데이터 — 실제 원재료 정보 확인 필요'
+FROM plans
+CROSS JOIN menu_sequences
+WHERE plans.public_id IN (
+    'PLN-11111111-1111-4111-8111-111111111111',
+    'PLN-22222222-2222-4222-8222-222222222222',
+    'PLN-33333333-3333-4333-8333-333333333333'
+)
+ON DUPLICATE KEY UPDATE
+    menus.public_id = menus.public_id;
+
 -- 2026·2027년 대한민국 공식 공휴일·대체공휴일 기준 데이터
 -- 출처: 우주항공청 월력요항(한국천문연구원 천문우주지식정보 제공)
 INSERT INTO holidays (
