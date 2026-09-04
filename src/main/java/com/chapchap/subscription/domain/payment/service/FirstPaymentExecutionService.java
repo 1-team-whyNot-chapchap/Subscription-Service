@@ -14,6 +14,7 @@ import com.chapchap.subscription.domain.payment.service.command.FirstPaymentExec
 import com.chapchap.subscription.domain.payment.service.exception.CurrentPaymentMethodUnavailableException;
 import com.chapchap.subscription.domain.payment.service.exception.PaymentTransactionNotFoundException;
 import com.chapchap.subscription.domain.payment.service.result.FirstPaymentExecutionResult;
+import com.chapchap.subscription.global.exception.payment.PaymentProviderUnavailableException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -85,7 +86,7 @@ public class FirstPaymentExecutionService {
         );
 
         LocalDateTime requestedAt = LocalDateTime.now(BUSINESS_ZONE_ID);
-        AutomaticPaymentResult providerResult = automaticPaymentClient.pay(request);
+        AutomaticPaymentResult providerResult = requestPaymentOrFindConfirmedResult(request);
         LocalDateTime respondedAt = LocalDateTime.now(BUSINESS_ZONE_ID);
 
         return new FirstPaymentExecutionResult(
@@ -98,6 +99,22 @@ public class FirstPaymentExecutionService {
             respondedAt,
             providerResult
         );
+    }
+
+    /**
+     * 최초 POST의 결제 결과가 불명확할 때만 같은 paymentId를 한 번 조회한다.
+     *
+     * <p>조회 결과가 PAID 또는 FAILED로 확정되지 않으면 최초 예외를 다시 전파한다.
+     * 따라서 상위 흐름은 기존 PAYMENT_003 처리로 결제·구독 관련 데이터를 처리 중 상태에 남기며,
+     * 여기서 새 POST나 추가 조회를 수행하지 않는다.</p>
+     */
+    private AutomaticPaymentResult requestPaymentOrFindConfirmedResult(AutomaticPaymentRequest request) {
+        try {
+            return automaticPaymentClient.pay(request);
+        } catch (PaymentProviderUnavailableException exception) {
+            return automaticPaymentClient.findConfirmedResult(request.externalPaymentId())
+                .orElseThrow(() -> exception);
+        }
     }
 
     private void validateExecutable(PaymentTransaction transaction) {

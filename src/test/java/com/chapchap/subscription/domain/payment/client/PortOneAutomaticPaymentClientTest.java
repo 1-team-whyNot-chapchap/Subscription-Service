@@ -13,10 +13,13 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.headerDoesNotExist;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
@@ -276,6 +279,93 @@ class PortOneAutomaticPaymentClientTest {
 
         assertThatThrownBy(() -> client.pay(request()))
             .isInstanceOf(PaymentProviderUnavailableException.class);
+        server.verify();
+    }
+
+    @Test
+    void 결제_단건_조회에서_PAID면_확정_성공_결과를_반환한다() {
+        server.expect(requestTo(BASE_URL + "/payments/" + PAYMENT_ID))
+            .andExpect(method(HttpMethod.GET))
+            .andExpect(header(HttpHeaders.AUTHORIZATION, "PortOne " + API_SECRET))
+            .andExpect(headerDoesNotExist("Idempotency-Key"))
+            .andRespond(withSuccess("""
+                {
+                  "status": "PAID",
+                  "id": "PAY-test-payment",
+                  "transactionId": "portone-transaction-lookup-1"
+                }
+                """, MediaType.APPLICATION_JSON));
+
+        Optional<AutomaticPaymentResult> result = client.findConfirmedResult(PAYMENT_ID);
+
+        assertThat(result).isPresent();
+        assertThat(result.orElseThrow().status()).isEqualTo(AutomaticPaymentStatus.PAID);
+        assertThat(result.orElseThrow().externalTransactionRef()).isEqualTo("portone-transaction-lookup-1");
+        server.verify();
+    }
+
+    @Test
+    void 결제_단건_조회에서_FAILED면_확정_거절_결과를_반환한다() {
+        server.expect(requestTo(BASE_URL + "/payments/" + PAYMENT_ID))
+            .andExpect(method(HttpMethod.GET))
+            .andRespond(withSuccess("""
+                {
+                  "status": "FAILED",
+                  "id": "PAY-test-payment",
+                  "failure": {"pgCode": "DECLINED"}
+                }
+                """, MediaType.APPLICATION_JSON));
+
+        Optional<AutomaticPaymentResult> result = client.findConfirmedResult(PAYMENT_ID);
+
+        assertThat(result).isPresent();
+        assertThat(result.orElseThrow().status()).isEqualTo(AutomaticPaymentStatus.DECLINED);
+        assertThat(result.orElseThrow().externalResultCode()).isEqualTo("DECLINED");
+        server.verify();
+    }
+
+    @Test
+    void 결제_단건_조회가_미확정_상태면_빈_결과를_반환한다() {
+        server.expect(requestTo(BASE_URL + "/payments/" + PAYMENT_ID))
+            .andExpect(method(HttpMethod.GET))
+            .andRespond(withSuccess("""
+                {
+                  "status": "PENDING",
+                  "id": "PAY-test-payment"
+                }
+                """, MediaType.APPLICATION_JSON));
+
+        assertThat(client.findConfirmedResult(PAYMENT_ID)).isEmpty();
+        server.verify();
+    }
+
+    @Test
+    void 결제_단건_조회_HTTP_오류는_빈_결과를_반환한다() {
+        server.expect(requestTo(BASE_URL + "/payments/" + PAYMENT_ID))
+            .andExpect(method(HttpMethod.GET))
+            .andRespond(withStatus(HttpStatus.BAD_GATEWAY));
+
+        assertThat(client.findConfirmedResult(PAYMENT_ID)).isEmpty();
+        server.verify();
+    }
+
+    @Test
+    void 결제_단건_조회_응답의_식별자가_다르거나_JSON이_잘못되면_빈_결과를_반환한다() {
+        server.expect(requestTo(BASE_URL + "/payments/" + PAYMENT_ID))
+            .andExpect(method(HttpMethod.GET))
+            .andRespond(withSuccess("""
+                {
+                  "status": "PAID",
+                  "id": "different-payment-id",
+                  "transactionId": "portone-transaction-lookup-1"
+                }
+                """, MediaType.APPLICATION_JSON));
+        server.expect(requestTo(BASE_URL + "/payments/" + PAYMENT_ID))
+            .andExpect(method(HttpMethod.GET))
+            .andRespond(withSuccess("not-json", MediaType.APPLICATION_JSON));
+
+        assertThat(client.findConfirmedResult(PAYMENT_ID)).isEmpty();
+        assertThat(client.findConfirmedResult(PAYMENT_ID)).isEmpty();
         server.verify();
     }
 
