@@ -43,6 +43,13 @@ public class AddressService {
         return new AddressListResponse(addresses);
     }
 
+    /** 인증 고객 소유이며 삭제되지 않은 첫 구독 배송지를 조회하고, 없으면 ADDRESS_001을 발생시킨다. */
+    public Address requireActiveAddress(Long userId, String addressId) {
+        return addressRepository
+                .findByPublicIdAndUserIdAndDeletedAtIsNull(addressId, userId)
+                .orElseThrow(AddressNotFoundException::new);
+    }
+
     // 새 배송지를 등록한다.
         // 필수값·대구 배송 가능 여부·배달 방식 조건을 검증하고,
         // 첫 배송지면 자동으로 기본 배송지로 만든다.

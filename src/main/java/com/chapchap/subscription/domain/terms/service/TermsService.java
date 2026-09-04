@@ -8,6 +8,7 @@ import com.chapchap.subscription.domain.terms.request.TermsAgreementRequest;
 import com.chapchap.subscription.domain.terms.response.TermsAgreementResponse;
 import com.chapchap.subscription.domain.terms.response.TermsCurrentResponse;
 import com.chapchap.subscription.global.exception.terms.CurrentRequiredTermsNotFoundException;
+import com.chapchap.subscription.global.exception.terms.TermsAgreementRequiredException;
 import com.chapchap.subscription.global.exception.terms.TermsVersionMismatchException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -48,6 +49,15 @@ public class TermsService {
                 terms.getContent(),
                 terms.getVersionNumber()
         );
+    }
+
+    /** 현재 적용 중인 필수 약관의 고객 동의 기록을 조회하고, 없으면 TERMS_003을 발생시킨다. */
+    public UserTermsAgreement requireCurrentAgreement(Long userId) {
+        Terms terms = getCurrentRequiredTerms();
+
+        return userTermsAgreementRepository
+                .findByUserIdAndTermsId(userId, terms.getId())
+                .orElseThrow(TermsAgreementRequiredException::new);
     }
 
     // 동의한 내역이 있는지 판단하고 처리

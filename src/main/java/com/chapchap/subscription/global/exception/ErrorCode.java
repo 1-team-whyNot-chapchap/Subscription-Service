@@ -17,6 +17,8 @@ public enum ErrorCode {
     , PAYMENT_PROVIDER_UNAVAILABLE("PAYMENT_003", HttpStatus.BAD_GATEWAY, "결제 서비스를 일시적으로 이용할 수 없습니다.")
     , PAYMENT_METHOD_REGISTRATION_CONFLICT("PAYMENT_004", HttpStatus.CONFLICT, "자동결제수단 등록 중 상태 충돌이 발생했습니다.")
     , PAYMENT_METHOD_NOT_FOUND("PAYMENT_005", HttpStatus.NOT_FOUND, "자동결제수단을 찾을 수 없습니다.")
+    , CURRENT_PAYMENT_METHOD_REQUIRED("PAYMENT_007", HttpStatus.CONFLICT, "현재 자동결제수단을 등록하거나 선택해 주세요.")
+    , PAYMENT_DECLINED("PAYMENT_008", HttpStatus.CONFLICT, "결제가 승인되지 않았습니다.")
 
     // === Address ===
     , ADDRESS_NOT_FOUND("ADDRESS_001", HttpStatus.NOT_FOUND, "배송지를 찾을 수 없습니다.")
@@ -27,6 +29,11 @@ public enum ErrorCode {
     // === Terms ===
     , CURRENT_REQUIRED_TERMS_NOT_FOUND("TERMS_001", HttpStatus.INTERNAL_SERVER_ERROR, "현재 적용 중인 필수 약관을 확인할 수 없습니다.")
     , TERMS_VERSION_MISMATCH("TERMS_002", HttpStatus.CONFLICT, "확인한 약관 버전이 현재 적용 약관 버전과 일치하지 않습니다.")
+    , TERMS_AGREEMENT_REQUIRED("TERMS_003", HttpStatus.CONFLICT, "현재 적용 중인 필수 약관에 동의해 주세요.")
+
+    // === Subscription ===
+    , PLAN_NOT_FOUND("SUBSCRIPTION_001", HttpStatus.NOT_FOUND, "플랜을 찾을 수 없습니다.")
+    , SUBSCRIPTION_ALREADY_ACTIVE("SUBSCRIPTION_002", HttpStatus.CONFLICT, "이미 진행 중인 구독이 있습니다.")
 
     // === Common ===
     , INVALID_REQUEST("COMMON_001", HttpStatus.BAD_REQUEST, "요청이 유효하지 않습니다.")

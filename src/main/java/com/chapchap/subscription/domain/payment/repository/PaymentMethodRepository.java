@@ -23,4 +23,10 @@ public interface PaymentMethodRepository extends JpaRepository<PaymentMethod, Lo
         Long userId
         , PaymentMethodStatus status
     );
+
+    /** 첫 결제 전에 인증 고객이 사용할 수 있는 현재 자동결제수단을 보유했는지 확인한다. */
+    boolean existsByUserIdAndStatusAndIsCurrentTrueAndDeletedAtIsNull(
+        Long userId,
+        PaymentMethodStatus status
+    );
 }
