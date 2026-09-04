@@ -34,6 +34,7 @@ import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -164,6 +165,37 @@ public class FirstSubscriptionPreparationService {
             subscription.getStatus(), schedule.periodStartDate(), schedule.periodEndDate(),
             payment.paymentTransactionId(), orderResult, true
         );
+    }
+
+    /**
+     * 동시 prepare 충돌로 현재 요청의 트랜잭션이 끝난 뒤 먼저 확정된 처리 중 신청을 조회한다.
+     *
+     * <p>구독·최신 기간·첫 결제 거래가 모두 처리 대기 상태로 일치할 때만 복구 결과를 반환한다.
+     * 일부 데이터만 남았거나 이미 실패로 확정된 상태는 새 결제 실행 권한으로 바꾸지 않는다.</p>
+     */
+    @Transactional(readOnly = true)
+    public Optional<PreparedFirstSubscription> recoverConcurrentProcessing(Long userId) {
+        Optional<Subscription> found = subscriptionRepository.findByUserId(userId);
+        if (found.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Subscription subscription = found.get();
+        rejectActive(subscription);
+        if (subscription.getStatus() != SubscriptionStatus.AWAITING_CONFIRMATION) {
+            return Optional.empty();
+        }
+
+        return periodRepository.findTopBySubscriptionIdOrderByPeriodSequenceDesc(subscription.getId())
+            .filter(period -> period.getStatus() == SubscriptionPeriodStatus.AWAITING_CONFIRMATION)
+            .flatMap(period -> paymentTransactionRepository
+                .findByBusinessDeduplicationKey(PaymentBusinessKeyGenerator.firstPayment(period.getId()))
+                .filter(transaction -> transaction.getStatus() == PaymentTransactionStatus.PROCESSING)
+                .map(transaction -> PreparedFirstSubscription.processing(
+                    subscription.getId(), subscription.getPublicId(), period.getId(),
+                    period.getPeriodStartDate(), period.getPeriodEndDate(), transaction.getId()
+                ))
+            );
     }
 
     private PreparedFirstSubscription findExistingProcessing(Subscription subscription) {
