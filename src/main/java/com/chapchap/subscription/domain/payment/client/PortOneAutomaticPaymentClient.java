@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.Locale;
+import java.util.Optional;
 
 /** PortOne V2 빌링키 결제 API를 Provider 중립 자동결제 계약에 연결한다. */
 @Component
@@ -100,33 +101,59 @@ public class PortOneAutomaticPaymentClient implements AutomaticPaymentClient {
         }
     }
 
+    /**
+     * 최초 결제 요청의 응답이 불명확할 때 같은 paymentId의 최종 상태만 조회한다.
+     *
+     * <p>이 조회는 결제를 새로 요청하지 않으며, 응답 오류·미확정 상태·식별자 불일치는
+     * 호출자가 기존 PAYMENT_003 처리 경로를 유지할 수 있도록 빈 결과로 변환한다.</p>
+     */
+    @Override
+    public Optional<AutomaticPaymentResult> findConfirmedResult(String externalPaymentId) {
+        try {
+            PortOneBillingKeyPaymentResponse.Payment payment = restClient.get()
+                .uri("/payments/{paymentId}", externalPaymentId)
+                .retrieve()
+                .body(PortOneBillingKeyPaymentResponse.Payment.class);
+
+            return toConfirmedPaymentResult(externalPaymentId, payment);
+        } catch (RestClientException exception) {
+            return Optional.empty();
+        }
+    }
+
     private AutomaticPaymentResult toAutomaticPaymentResult(
         AutomaticPaymentRequest request,
         PortOneBillingKeyPaymentResponse response
     ) {
-        if (response == null || response.payment() == null) {
-            throw new PaymentProviderUnavailableException();
-        }
+        return toConfirmedPaymentResult(request.externalPaymentId(), response == null ? null : response.payment())
+            .orElseThrow(PaymentProviderUnavailableException::new);
+    }
 
-        PortOneBillingKeyPaymentResponse.Payment payment = response.payment();
-        if (!request.externalPaymentId().equals(payment.id())) {
-            throw new PaymentProviderUnavailableException();
+    private Optional<AutomaticPaymentResult> toConfirmedPaymentResult(
+        String externalPaymentId,
+        PortOneBillingKeyPaymentResponse.Payment payment
+    ) {
+        if (payment == null || !externalPaymentId.equals(payment.id())) {
+            return Optional.empty();
         }
         if (PAID_STATUS.equals(payment.status())) {
-            return AutomaticPaymentResult.success(
+            if (payment.transactionId() == null || payment.transactionId().isBlank()) {
+                return Optional.empty();
+            }
+            return Optional.of(AutomaticPaymentResult.success(
                 payment.id(),
                 payment.transactionId(),
                 PAID_STATUS
-            );
+            ));
         }
         if (FAILED_STATUS.equals(payment.status())) {
-            return AutomaticPaymentResult.declined(
+            return Optional.of(AutomaticPaymentResult.declined(
                 payment.id(),
                 failureCode(payment.failure()),
                 GENERIC_DECLINE_REASON
-            );
+            ));
         }
-        throw new PaymentProviderUnavailableException();
+        return Optional.empty();
     }
 
     private AutomaticPaymentResult mapProviderError(
