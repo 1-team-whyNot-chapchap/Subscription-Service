@@ -109,6 +109,16 @@ public class Subscription {
         return previousStatus;
     }
 
+    /** 해지 예정 또는 다음 기간 정기결제 최종 실패 뒤 실제 구독을 종료한다. */
+    public SubscriptionStatus end() {
+        if (status != SubscriptionStatus.CANCELLATION_SCHEDULED && status != SubscriptionStatus.IN_PROGRESS) {
+            throw new IllegalStateException("해지 예정 또는 이용 중 구독만 종료할 수 있습니다.");
+        }
+        SubscriptionStatus previousStatus = status;
+        status = SubscriptionStatus.ENDED;
+        return previousStatus;
+    }
+
     // 특정 조건(결제 실패, 시작 전 취소, 종료)을 가진 구독 건을 재신청할 수 있도록 상태를 '승인 대기'로 초기화
     public SubscriptionStatus prepareReapplication() {
         if (status != SubscriptionStatus.PAYMENT_FAILED
