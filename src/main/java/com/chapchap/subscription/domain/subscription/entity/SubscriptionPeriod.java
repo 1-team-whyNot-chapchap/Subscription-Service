@@ -123,6 +123,14 @@ public class SubscriptionPeriod {
         status = SubscriptionPeriodStatus.PAYMENT_FAILED;
     }
 
+    // SCHEDULED(시작 예정) -> IN_PROGRESS(진행 중) 상태 변경
+    public void start() {
+        if (status != SubscriptionPeriodStatus.SCHEDULED) {
+            throw new IllegalStateException("시작 예정 이용 기간만 이용을 시작할 수 있습니다.");
+        }
+        status = SubscriptionPeriodStatus.IN_PROGRESS;
+    }
+
     private void requireAwaitingConfirmation() {
         if (status != SubscriptionPeriodStatus.AWAITING_CONFIRMATION) {
             throw new IllegalStateException("확정 대기 이용 기간만 결제 결과를 반영할 수 있습니다.");

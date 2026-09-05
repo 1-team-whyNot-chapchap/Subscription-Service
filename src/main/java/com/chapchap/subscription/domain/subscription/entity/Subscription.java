@@ -101,6 +101,14 @@ public class Subscription {
         return previousStatus;
     }
 
+    // SCHEDULED(시작 예정) -> IN_PROGRESS(이용 중) 상태 변경
+    public SubscriptionStatus startFirstPeriod() {
+        requireStatus(SubscriptionStatus.SCHEDULED);
+        SubscriptionStatus previousStatus = status;
+        status = SubscriptionStatus.IN_PROGRESS;
+        return previousStatus;
+    }
+
     // 특정 조건(결제 실패, 시작 전 취소, 종료)을 가진 구독 건을 재신청할 수 있도록 상태를 '승인 대기'로 초기화
     public SubscriptionStatus prepareReapplication() {
         if (status != SubscriptionStatus.PAYMENT_FAILED
