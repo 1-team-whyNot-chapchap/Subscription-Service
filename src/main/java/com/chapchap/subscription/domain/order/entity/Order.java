@@ -311,6 +311,34 @@ public class Order {
         status = OrderStatus.PAYMENT_FAILED;
     }
 
+    /** Kafka Broker 저장 성공을 반영한다. */
+    public void markKafkaDeliveryCompleted(LocalDateTime storedAt) {
+        if (kafkaDeliveryStatus != OrderKafkaDeliveryStatus.NOT_SENT
+            && kafkaDeliveryStatus != OrderKafkaDeliveryStatus.FAILED) {
+            throw new IllegalStateException("Only unsent or failed delivery can be completed");
+        }
+        kafkaDeliveryStatus = OrderKafkaDeliveryStatus.COMPLETED;
+        kafkaStoredAt = requireNonNull(storedAt, "storedAt");
+    }
+
+    /** 15시 최초 Kafka 저장 실패를 반영한다. */
+    public void markKafkaDeliveryFailed() {
+        if (kafkaDeliveryStatus != OrderKafkaDeliveryStatus.NOT_SENT) {
+            throw new IllegalStateException("Only unsent delivery can fail initially");
+        }
+        kafkaDeliveryStatus = OrderKafkaDeliveryStatus.FAILED;
+        kafkaStoredAt = null;
+    }
+
+    /** 16시 재시도까지 실패한 Kafka 전달을 종료 상태로 반영한다. */
+    public void markKafkaDeliveryFinalFailed() {
+        if (kafkaDeliveryStatus != OrderKafkaDeliveryStatus.FAILED) {
+            throw new IllegalStateException("Only failed delivery can become final failed");
+        }
+        kafkaDeliveryStatus = OrderKafkaDeliveryStatus.FINAL_FAILED;
+        kafkaStoredAt = null;
+    }
+
     /** DB 반영 직전에도 금액·배송·Kafka 상태 불변식을 다시 확인한다. */
     @PrePersist
     @PreUpdate
