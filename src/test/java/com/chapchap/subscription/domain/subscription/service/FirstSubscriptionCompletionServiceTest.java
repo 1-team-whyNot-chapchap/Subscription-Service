@@ -19,6 +19,7 @@ import com.chapchap.subscription.domain.subscription.repository.SubscriptionPeri
 import com.chapchap.subscription.domain.subscription.repository.SubscriptionRepository;
 import com.chapchap.subscription.domain.subscription.repository.SubscriptionSettingRepository;
 import com.chapchap.subscription.domain.subscription.repository.SubscriptionStatusHistoryRepository;
+import com.chapchap.subscription.global.kafka.auth.AuthSubscriptionStatusPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -47,6 +48,7 @@ class FirstSubscriptionCompletionServiceTest {
     @Mock private SubscriptionSettingRepository settingRepository;
     @Mock private SubscriptionStatusHistoryRepository historyRepository;
     @Mock private KstReferenceTimeProvider timeProvider;
+    @Mock private AuthSubscriptionStatusPublisher authStatusPublisher;
 
     private FirstSubscriptionCompletionService service;
     private Subscription subscription;
@@ -62,7 +64,7 @@ class FirstSubscriptionCompletionServiceTest {
             periodRepository,
             settingRepository,
             historyRepository,
-            timeProvider
+            timeProvider, authStatusPublisher
         );
         subscription = Subscription.create(10L);
         ReflectionTestUtils.setField(subscription, "id", 1L);
@@ -104,6 +106,8 @@ class FirstSubscriptionCompletionServiceTest {
             .extracting(PaymentAllocationCommand::orderId, PaymentAllocationCommand::allocationAmount)
             .containsExactly(tuple(4L, 10_000L), tuple(5L, 20_000L));
         verify(firstOrderService).activateAfterPayment(2L, List.of(4L, 5L));
+        verify(authStatusPublisher).publishAfterCommit(subscription, SubscriptionStatus.AWAITING_CONFIRMATION,
+            SubscriptionStatus.SCHEDULED, LocalDateTime.of(2026, 9, 4, 10, 1));
         assertHistory(SubscriptionStatus.SCHEDULED, "FIRST_PAYMENT_SUCCEEDED");
     }
 

@@ -130,6 +130,12 @@ public class Subscription {
         isFirstSubscriptionDiscountUsed = true;
     }
 
+    /** Auth Projection 상태가 실제로 바뀔 때만 고객별 전달 순번을 증가시킨다. */
+    public int increaseAuthSubscriptionVersion() {
+        authSubscriptionVersion = Math.addExact(authSubscriptionVersion, 1);
+        return authSubscriptionVersion;
+    }
+
     // 현재 구독 상태가 특정 작업에 필요한 상태와 일치하는지 확인
     private void requireStatus(SubscriptionStatus requiredStatus) {
         if (status != requiredStatus) {
