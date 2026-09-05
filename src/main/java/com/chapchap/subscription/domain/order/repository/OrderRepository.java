@@ -33,6 +33,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
      */
     List<Order> findAllBySubscriptionPeriodId(Long subscriptionPeriodId);
 
+    boolean existsByAddressIdAndStatusAndDeliveryDateGreaterThanEqual(
+        Long addressId, OrderStatus status, LocalDate deliveryDate
+    );
+
     /** 같은 실행에서 중복 발행하지 않도록 대상 주문을 잠근 뒤 조회한다. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<Order> findAllByDeliveryDateAndStatusAndKafkaDeliveryStatus(
