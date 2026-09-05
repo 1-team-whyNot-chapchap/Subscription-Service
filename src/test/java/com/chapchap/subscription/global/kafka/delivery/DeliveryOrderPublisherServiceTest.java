@@ -73,7 +73,7 @@ class DeliveryOrderPublisherServiceTest {
         assertThat(event.eventType()).isEqualTo(SubscriptionDeliveryOrderReadyEvent.EVENT_TYPE);
         assertThat(event.userId()).isEqualTo(10L);
         assertThat(event.data().postalCode()).isEqualTo("41911");
-        assertThat(event.data().entranceInformation()).isNull();
+        assertThat(event.data().entranceInformation()).isEqualTo("7003");
         assertThat(event.data().menuItems()).singleElement().satisfies(item -> {
             assertThat(item.menuId()).isEqualTo(menu.getPublicId());
             assertThat(item.quantity()).isEqualTo(2);
@@ -86,7 +86,7 @@ class DeliveryOrderPublisherServiceTest {
         Order order = Order.createAwaitingConfirmation(
             10L, 1L, 2L, 3L, 5L, 6L, 4L, 7L, LocalDate.of(2026, 9, 8), "플랜", "메뉴",
             8_900L, 2, 17_800L, 0L, 0L, 17_800L, "홍길동", "010-0000-0000", "41911",
-            "대구광역시 중구 국채보상로 1", "101동 1001호", "DOORSTEP", null, "not-published", OrderDeliveryTimeSlot.TIME_1100_1300
+            "대구광역시 중구 국채보상로 1", "101동 1001호", "DOORSTEP", null, "7003", OrderDeliveryTimeSlot.TIME_1100_1300
         );
         ReflectionTestUtils.setField(order, "id", 100L);
         order.activateAfterPayment();

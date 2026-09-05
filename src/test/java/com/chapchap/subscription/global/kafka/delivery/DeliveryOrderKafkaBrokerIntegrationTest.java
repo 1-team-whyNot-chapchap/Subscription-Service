@@ -108,7 +108,7 @@ class DeliveryOrderKafkaBrokerIntegrationTest {
             assertThat(event.path("eventType").asText()).isEqualTo("SUBSCRIPTION_DELIVERY_ORDER_READY");
             assertThat(event.path("data").path("orderId").asText()).isEqualTo(order.getPublicId());
             assertThat(event.path("data").path("deliveryAreaCode").isMissingNode()).isTrue();
-            assertThat(event.path("data").path("entranceInformation").isNull()).isTrue();
+            assertThat(event.path("data").path("entranceInformation").asText()).isEqualTo("7003");
             assertThat(order.getKafkaDeliveryStatus()).isEqualTo(OrderKafkaDeliveryStatus.COMPLETED);
             assertThat(order.getKafkaStoredAt()).isNotNull();
             assertThat(attempts).singleElement().satisfies(attempt -> {
@@ -333,7 +333,7 @@ class DeliveryOrderKafkaBrokerIntegrationTest {
             10L, uniqueId(), uniqueId(), uniqueId(), 5L, uniqueId(), uniqueId(), 7L, deliveryDate,
             "Kafka 통합 테스트 플랜", "Kafka 통합 테스트 메뉴", 8_900L, 2, 17_800L, 0L, 0L, 17_800L,
             "테스트 수령인", "010-0000-0000", "41911", "대구광역시 중구 테스트로 1", "101호",
-            "DOORSTEP", null, null, OrderDeliveryTimeSlot.TIME_1100_1300
+            "DOORSTEP", null, "7003", OrderDeliveryTimeSlot.TIME_1100_1300
         );
     }
 

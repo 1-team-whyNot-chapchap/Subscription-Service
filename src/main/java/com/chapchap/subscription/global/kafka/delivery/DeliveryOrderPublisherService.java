@@ -151,7 +151,7 @@ public class DeliveryOrderPublisherService {
                 order.getPublicId(), order.getDeliveryDate(), slotOf(order), order.getMealQuantity(),
                 order.getRecipientName(), order.getRecipientPhone(), order.getPostalCode(), order.getAddressLine1(),
                 order.getAddressLine2(), order.getDeliveryMethodCode(), order.getOtherDeliveryRequest(),
-                null, true, agreement.getAgreedAt().atOffset(KST_OFFSET),
+                order.getEntrancePassword(), true, agreement.getAgreedAt().atOffset(KST_OFFSET),
                 List.of(new SubscriptionDeliveryOrderReadyEvent.MenuItem(menu.getPublicId(), order.getMenuName(), order.getMealQuantity()))
             )
         );
