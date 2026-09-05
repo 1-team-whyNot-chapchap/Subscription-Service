@@ -14,6 +14,7 @@ import com.chapchap.subscription.domain.subscription.repository.SubscriptionPeri
 import com.chapchap.subscription.domain.subscription.repository.SubscriptionRepository;
 import com.chapchap.subscription.domain.subscription.repository.SubscriptionSettingRepository;
 import com.chapchap.subscription.domain.subscription.repository.SubscriptionStatusHistoryRepository;
+import com.chapchap.subscription.global.kafka.auth.AuthSubscriptionStatusPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +33,7 @@ public class FirstSubscriptionCompletionService {
     private final SubscriptionSettingRepository settingRepository;
     private final SubscriptionStatusHistoryRepository historyRepository;
     private final KstReferenceTimeProvider timeProvider;
+    private final AuthSubscriptionStatusPublisher authStatusPublisher;
 
     /** 첫 결제 결과 확정에 참여하는 도메인 서비스와 저장소를 구성한다. */
     public FirstSubscriptionCompletionService(
@@ -41,7 +43,8 @@ public class FirstSubscriptionCompletionService {
         SubscriptionPeriodRepository periodRepository,
         SubscriptionSettingRepository settingRepository,
         SubscriptionStatusHistoryRepository historyRepository,
-        KstReferenceTimeProvider timeProvider
+        KstReferenceTimeProvider timeProvider,
+        AuthSubscriptionStatusPublisher authStatusPublisher
     ) {
         this.paymentCompletionService = paymentCompletionService;
         this.firstOrderService = firstOrderService;
@@ -50,6 +53,7 @@ public class FirstSubscriptionCompletionService {
         this.settingRepository = settingRepository;
         this.historyRepository = historyRepository;
         this.timeProvider = timeProvider;
+        this.authStatusPublisher = authStatusPublisher;
     }
 
     /** 성공이면 시작 예정/활성 상태로, 명시적 실패이면 결제 실패 상태로 함께 변경한다. */
@@ -103,6 +107,7 @@ public class FirstSubscriptionCompletionService {
         historyRepository.save(SubscriptionStatusHistory.create(
             subscription.getId(), previous, next, ACTOR, reason, changedAt
         ));
+        authStatusPublisher.publishAfterCommit(subscription, previous, next, changedAt);
         return status;
     }
 }
