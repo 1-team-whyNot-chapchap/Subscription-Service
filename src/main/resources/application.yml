@@ -42,3 +42,5 @@ app:
       send-timeout: ${KAFKA_DELIVERY_ORDER_SEND_TIMEOUT:PT10S}
     auth-subscription-status:
       topic: ${KAFKA_TOPIC_SUBSCRIPTION_AUTH_STATUS:subscription.subscription-events.v1}
+    customer-delivery-address:
+      topic: ${KAFKA_TOPIC_CUSTOMER_DELIVERY_ADDRESS:subscription.delivery-address-events.v1}

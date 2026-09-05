@@ -9,6 +9,7 @@ import com.chapchap.subscription.domain.subscription.entity.SubscriptionSettingS
 import com.chapchap.subscription.domain.subscription.repository.SubscriptionDeliveryConditionRepository;
 import com.chapchap.subscription.domain.subscription.service.KstReferenceTimeProvider;
 import com.chapchap.subscription.global.exception.address.AddressInUseException;
+import com.chapchap.subscription.global.kafka.customer.CustomerDeliveryAddressPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +23,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 class AddressServiceTest {
@@ -36,7 +38,7 @@ class AddressServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new AddressService(addressRepository, deliveryMethodRepository, conditionRepository, orderRepository, timeProvider);
+        service = new AddressService(addressRepository, deliveryMethodRepository, conditionRepository, orderRepository, timeProvider, mock(CustomerDeliveryAddressPublisher.class));
         when(timeProvider.now()).thenReturn(now);
     }
 
