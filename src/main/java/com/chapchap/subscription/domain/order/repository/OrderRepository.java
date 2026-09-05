@@ -9,9 +9,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 /** 주문의 저장과 이용 기간별 최초 주문 존재 여부 조회를 담당한다. */
 public interface OrderRepository extends JpaRepository<Order, Long> {
+    List<Order> findAllByUserIdOrderByDeliveryDateDescIdDesc(Long userId);
+
+    Optional<Order> findByPublicIdAndUserId(String publicId, Long userId);
+
     /**
      * 같은 이용 기간에 최초 주문 묶음이 이미 생성됐는지 확인한다.
      *

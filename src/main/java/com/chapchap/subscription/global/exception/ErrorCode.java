@@ -36,6 +36,9 @@ public enum ErrorCode {
     , PLAN_NOT_FOUND("SUBSCRIPTION_001", HttpStatus.NOT_FOUND, "플랜을 찾을 수 없습니다.")
     , SUBSCRIPTION_ALREADY_ACTIVE("SUBSCRIPTION_002", HttpStatus.CONFLICT, "이미 진행 중인 구독이 있습니다.")
 
+    // === Order ===
+    , ORDER_NOT_FOUND("ORDER_001", HttpStatus.NOT_FOUND, "주문을 찾을 수 없습니다.")
+
     // === Common ===
     , INVALID_REQUEST("COMMON_001", HttpStatus.BAD_REQUEST, "요청이 유효하지 않습니다.")
     , DATABASE_ERROR("COMMON_098", HttpStatus.INTERNAL_SERVER_ERROR, "데이터 처리 중 오류가 발생했습니다.")
