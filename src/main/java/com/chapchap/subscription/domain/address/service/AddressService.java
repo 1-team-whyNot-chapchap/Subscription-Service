@@ -16,6 +16,7 @@ import com.chapchap.subscription.global.exception.address.AddressOutOfServiceAre
 import com.chapchap.subscription.global.exception.address.AddressInUseException;
 import com.chapchap.subscription.global.exception.address.DefaultAddressDeleteNotAllowedException;
 import com.chapchap.subscription.global.exception.address.InvalidAddressRequestException;
+import com.chapchap.subscription.global.kafka.customer.CustomerDeliveryAddressPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +39,7 @@ public class AddressService {
     private final SubscriptionDeliveryConditionRepository subscriptionDeliveryConditionRepository;
     private final OrderRepository orderRepository;
     private final KstReferenceTimeProvider timeProvider;
+    private final CustomerDeliveryAddressPublisher customerDeliveryAddressPublisher;
 
     // 로그인한 사용자의 삭제되지 않은 배송지 목록을 조회하고 Response DTO로 변환한다.
     public AddressListResponse getAddresses(Long userId) {
@@ -100,6 +102,7 @@ public class AddressService {
         address.increaseDeliveryAddressVersion();
 
         Address savedAddress = addressRepository.save(address);
+        customerDeliveryAddressPublisher.publishChangedAfterCommit(savedAddress, timeProvider.now());
 
         return new AddressCreateResponse(
                 savedAddress.getPublicId(),
@@ -195,6 +198,7 @@ public class AddressService {
         // 데이터가 변경되었을 경우 DeliveryAddressVersio 버전 업데이트
         if (customerVisibleChanged) {
             address.increaseDeliveryAddressVersion();
+            customerDeliveryAddressPublisher.publishChangedAfterCommit(address, timeProvider.now());
         }
 
         return new AddressUpdateResponse(address.getPublicId());
@@ -366,6 +370,7 @@ public class AddressService {
 
         // 기본배송지인지 확인
         if (address.isDefault()) {
+            customerDeliveryAddressPublisher.publishRejectedAfterCommit(address, "ADDRESS_003", timeProvider.now());
             throw new DefaultAddressDeleteNotAllowedException();
         }
 
@@ -375,6 +380,7 @@ public class AddressService {
         ) || orderRepository.existsByAddressIdAndStatusAndDeliveryDateGreaterThanEqual(
                 address.getId(), OrderStatus.ACTIVE, todayKst
         )) {
+            customerDeliveryAddressPublisher.publishRejectedAfterCommit(address, "ADDRESS_004", timeProvider.now());
             throw new AddressInUseException();
         }
 
