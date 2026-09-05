@@ -2,9 +2,12 @@ package com.chapchap.subscription.domain.subscription.repository;
 
 import com.chapchap.subscription.domain.subscription.entity.SubscriptionPeriod;
 import com.chapchap.subscription.domain.subscription.entity.SubscriptionPeriodStatus;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 public interface SubscriptionPeriodRepository extends JpaRepository<SubscriptionPeriod, Long> {
@@ -23,4 +26,13 @@ public interface SubscriptionPeriodRepository extends JpaRepository<Subscription
             LocalDate startDate,
             LocalDate endDate
     );
+
+    List<SubscriptionPeriod> findAllByPeriodSequenceAndStatusAndPeriodStartDate(
+        Integer periodSequence,
+        SubscriptionPeriodStatus status,
+        LocalDate periodStartDate
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<SubscriptionPeriod> findWithLockById(Long id);
 }
