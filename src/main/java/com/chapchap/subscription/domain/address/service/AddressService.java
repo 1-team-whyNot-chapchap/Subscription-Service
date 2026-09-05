@@ -3,11 +3,17 @@ package com.chapchap.subscription.domain.address.service;
 import com.chapchap.subscription.domain.address.entity.Address;
 import com.chapchap.subscription.domain.address.repository.AddressRepository;
 import com.chapchap.subscription.domain.address.repository.DeliveryMethodRepository;
+import com.chapchap.subscription.domain.order.entity.OrderStatus;
+import com.chapchap.subscription.domain.order.repository.OrderRepository;
+import com.chapchap.subscription.domain.subscription.entity.SubscriptionSettingStatus;
+import com.chapchap.subscription.domain.subscription.repository.SubscriptionDeliveryConditionRepository;
+import com.chapchap.subscription.domain.subscription.service.KstReferenceTimeProvider;
 import com.chapchap.subscription.domain.address.request.AddressCreateRequest;
 import com.chapchap.subscription.domain.address.request.AddressUpdateRequest;
 import com.chapchap.subscription.domain.address.response.*;
 import com.chapchap.subscription.global.exception.address.AddressNotFoundException;
 import com.chapchap.subscription.global.exception.address.AddressOutOfServiceAreaException;
+import com.chapchap.subscription.global.exception.address.AddressInUseException;
 import com.chapchap.subscription.global.exception.address.DefaultAddressDeleteNotAllowedException;
 import com.chapchap.subscription.global.exception.address.InvalidAddressRequestException;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Objects;
 
@@ -30,6 +35,9 @@ public class AddressService {
 
     private final AddressRepository addressRepository;
     private final DeliveryMethodRepository deliveryMethodRepository;
+    private final SubscriptionDeliveryConditionRepository subscriptionDeliveryConditionRepository;
+    private final OrderRepository orderRepository;
+    private final KstReferenceTimeProvider timeProvider;
 
     // 로그인한 사용자의 삭제되지 않은 배송지 목록을 조회하고 Response DTO로 변환한다.
     public AddressListResponse getAddresses(Long userId) {
@@ -361,22 +369,18 @@ public class AddressService {
             throw new DefaultAddressDeleteNotAllowedException();
         }
 
-        // TODO: 현재 구독 배송 조건에서 사용 중이면 삭제 불가
-//        if (/* 현재 구독 배송 조건에서 사용 중 */) {
-//            throw new AddressInUseException();
-//        }
-
-        LocalDate todayKst =
-                LocalDate.now(ZoneId.of("Asia/Seoul"));
-
-        // TODO: 오늘 포함 미래 ACTIVE 주문에서 사용 중이면 삭제 불가
-//        if (/* ACTIVE 주문 && deliveryDate >= todayKst */) {
-//            throw new AddressInUseException();
-//        }
+        LocalDate todayKst = timeProvider.now().toLocalDate();
+        if (subscriptionDeliveryConditionRepository.existsCurrentConditionByAddressId(
+                address.getId(), SubscriptionSettingStatus.ACTIVE, todayKst
+        ) || orderRepository.existsByAddressIdAndStatusAndDeliveryDateGreaterThanEqual(
+                address.getId(), OrderStatus.ACTIVE, todayKst
+        )) {
+            throw new AddressInUseException();
+        }
 
         // 문제 없으면 소프트딜리트 처리
         address.softDelete(
-                LocalDateTime.now(ZoneId.of("Asia/Seoul"))
+                timeProvider.now()
         );
 
         return new AddressDeleteResponse(
