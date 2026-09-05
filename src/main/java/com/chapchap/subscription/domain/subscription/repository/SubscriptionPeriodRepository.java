@@ -33,6 +33,11 @@ public interface SubscriptionPeriodRepository extends JpaRepository<Subscription
         LocalDate periodStartDate
     );
 
+    List<SubscriptionPeriod> findAllByStatusAndPeriodEndDate(
+        SubscriptionPeriodStatus status,
+        LocalDate periodEndDate
+    );
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<SubscriptionPeriod> findWithLockById(Long id);
 }
