@@ -20,6 +20,8 @@ public enum ErrorCode {
     , CURRENT_PAYMENT_METHOD_DELETE_NOT_ALLOWED("PAYMENT_006", HttpStatus.CONFLICT, "진행 중인 구독에 사용되는 현재 자동결제수단은 삭제할 수 없습니다.")
     , CURRENT_PAYMENT_METHOD_REQUIRED("PAYMENT_007", HttpStatus.CONFLICT, "현재 자동결제수단을 등록하거나 선택해 주세요.")
     , PAYMENT_DECLINED("PAYMENT_008", HttpStatus.CONFLICT, "결제가 승인되지 않았습니다.")
+    , PAYMENT_HISTORY_NOT_FOUND("PAYMENT_011", HttpStatus.NOT_FOUND, "결제 내역을 찾을 수 없습니다.")
+    , REFUND_HISTORY_NOT_FOUND("PAYMENT_012", HttpStatus.NOT_FOUND, "환불 내역을 찾을 수 없습니다.")
 
     // === Address ===
     , ADDRESS_NOT_FOUND("ADDRESS_001", HttpStatus.NOT_FOUND, "배송지를 찾을 수 없습니다.")
