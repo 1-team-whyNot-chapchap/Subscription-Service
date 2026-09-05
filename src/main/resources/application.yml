@@ -34,3 +34,9 @@ portone:
 payment:
   billing-key:
     encryption-key: ${PAYMENT_BILLING_KEY_ENCRYPTION_KEY}
+
+app:
+  kafka:
+    delivery-order:
+      topic: ${KAFKA_TOPIC_SUBSCRIPTION_DELIVERY_ORDER:subscription.delivery-orders.v1}
+      send-timeout: ${KAFKA_DELIVERY_ORDER_SEND_TIMEOUT:PT10S}

@@ -1,8 +1,13 @@
 package com.chapchap.subscription.domain.order.repository;
 
 import com.chapchap.subscription.domain.order.entity.Order;
+import com.chapchap.subscription.domain.order.entity.OrderKafkaDeliveryStatus;
+import com.chapchap.subscription.domain.order.entity.OrderStatus;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /** 주문의 저장과 이용 기간별 최초 주문 존재 여부 조회를 담당한다. */
@@ -22,4 +27,12 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
      * @return 해당 이용 기간의 주문 목록
      */
     List<Order> findAllBySubscriptionPeriodId(Long subscriptionPeriodId);
+
+    /** 같은 실행에서 중복 발행하지 않도록 대상 주문을 잠근 뒤 조회한다. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    List<Order> findAllByDeliveryDateAndStatusAndKafkaDeliveryStatus(
+        LocalDate deliveryDate,
+        OrderStatus status,
+        OrderKafkaDeliveryStatus kafkaDeliveryStatus
+    );
 }
